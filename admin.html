@@ -27,7 +27,7 @@
       font-family: 'Noto Sans Myanmar', sans-serif;
       background-color: #f1f5f9;
       color: #1e293b;
-      padding-bottom: 85px; /* Space for mobile bottom nav */
+      padding-bottom: 85px;
     }
     /* Admin PIN Lock Overlay */
     #pinLockOverlay {
@@ -248,18 +248,18 @@
       <h5 class="fw-bold text-dark mb-1">Universal Travels & Tours</h5>
       <p class="small text-muted mb-4">Admin App ဝင်ရောက်ရန် PIN နံပါတ် ရိုက်ထည့်ပါ</p>
       
-      <form onsubmit="verifyAdminPin(event)">
+      <form id="adminPinLoginForm" onsubmit="verifyAdminPin(event)">
         <div class="mb-3">
-          <input type="password" id="adminPinInput" class="form-control pin-input-box" maxlength="8" inputmode="numeric" placeholder="••••" required autofocus>
+          <input type="password" id="adminPinInput" class="form-control pin-input-box" maxlength="8" placeholder="••••" required autofocus>
         </div>
         <div id="pinErrorMsg" class="text-danger small fw-semibold mb-3 d-none">
           <i class="fa-solid fa-circle-exclamation me-1"></i> PIN နံပါတ် မှားယွင်းနေပါသည်။
         </div>
-        <button type="submit" class="btn btn-orange w-100 py-2 fs-6 shadow-sm">
+        <button type="submit" id="btnPinSubmit" class="btn btn-orange w-100 py-2 fs-6 shadow-sm">
           <i class="fa-solid fa-unlock-keyhole me-2"></i> ဝင်ရောက်မည်
         </button>
       </form>
-      <div class="text-muted mt-3" style="font-size:0.72rem;">Default PIN: <strong>1234</strong></div>
+      <div class="text-muted mt-3" style="font-size:0.72rem;">Default PIN: <strong>1234</strong> (မြန်မာ/အင်္ဂလိပ် ဂဏန်း နှစ်မျိုးလုံး ရိုက်နိုင်ပါသည်)</div>
     </div>
   </div>
 
@@ -267,7 +267,7 @@
   <div id="liveToastContainer" class="toast-container-fixed no-print"></div>
 
   <!-- Top Header -->
-  <header class="admin-header py-2.5 py-2 shadow-sm mb-3 sticky-top no-print">
+  <header class="admin-header py-2 shadow-sm mb-3 sticky-top no-print">
     <div class="container-fluid px-3 d-flex justify-content-between align-items-center gap-2">
       <div class="d-flex align-items-center gap-2">
         <img src="logo.png" alt="Universal Travels & Tours" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('adminFallbackIcon').classList.remove('d-none');">
@@ -282,8 +282,7 @@
         </div>
       </div>
 
-      <div class="d-flex align-items-center gap-1.5 gap-1">
-        <!-- App Install Button (Android & iOS Guide) -->
+      <div class="d-flex align-items-center gap-1">
         <button id="btnInstallPwa" class="btn btn-sm btn-warning fw-bold px-2 py-1" onclick="triggerPwaInstall()" title="ဖုန်းတွင် App အဖြစ် Install လုပ်ရန်">
           <i class="fa-solid fa-mobile-screen-button"></i> <span class="d-none d-sm-inline">Install App</span>
         </button>
@@ -298,7 +297,7 @@
   </header>
 
   <div class="container-fluid px-3 px-md-4">
-    <!-- Connection Error Alert Banner (Hidden unless DB fails) -->
+    <!-- Connection Error Alert Banner -->
     <div id="dbErrorAlert" class="alert alert-danger d-none small mb-3">
       <strong><i class="fa-solid fa-triangle-exclamation me-1"></i>Database ချိတ်ဆက်မှု အခက်အခဲရှိနေပါသည်:</strong>
       <span id="dbErrorText"></span>
@@ -335,10 +334,9 @@
       <!-- TAB 1: DASHBOARD & BOOKINGS MANAGEMENT                              -->
       <!-- =================================================================== -->
       <div class="tab-pane fade show active" id="tabDashboard">
-        <!-- Mobile & Desktop 2x2 / 4x1 KPI Grid -->
         <div class="row g-2 g-md-3 mb-3">
           <div class="col-6 col-md-3">
-            <div class="card stat-card shadow-sm p-2.5 p-2">
+            <div class="card stat-card shadow-sm p-2">
               <div class="text-muted" style="font-size:0.72rem;">ပြေးဆွဲဆဲ ခရီးစဉ်</div>
               <div class="fs-5 fw-bold" id="statTotalTrips">0</div>
             </div>
@@ -365,7 +363,7 @@
 
         <!-- Active Bookings Card -->
         <div class="card border-0 shadow-sm rounded-4 mb-3">
-          <div class="card-header bg-white py-2.5 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="fw-bold mb-0 small"><i class="fa-solid fa-bolt text-warning me-1"></i>လက်ရှိ ဘိုကင်စာရင်းများ</h6>
             <div class="d-flex gap-1 w-100 w-md-auto">
               <select id="adminFilterTrip" class="form-select form-select-sm" onchange="renderAdminBookingsTable()">
@@ -401,7 +399,7 @@
 
         <!-- Collapsible Completed / Archived Bookings Section -->
         <div class="card border-0 shadow-sm rounded-4">
-          <div class="card-header bg-light py-2.5 py-2 d-flex justify-content-between align-items-center" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#collapseArchivedBookings">
+          <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#collapseArchivedBookings">
             <span class="fw-bold small text-secondary">
               <i class="fa-solid fa-box-archive me-1"></i>ပြီးဆုံး/ပယ်ဖျက် ဘွတ်ကင်များ
               <span class="badge bg-secondary ms-1" id="archivedBookingsCountBadge">0</span>
@@ -483,7 +481,7 @@
           <div class="col-lg-6">
             <!-- 1. Bus Type Setup -->
             <div class="card border-0 shadow-sm rounded-4 mb-3">
-              <div class="card-header bg-dark text-white py-2.5 py-2 rounded-top-4">
+              <div class="card-header bg-dark text-white py-2 rounded-top-4">
                 <h6 class="mb-0 fw-bold small"><i class="fa-solid fa-bus-simple text-warning me-2"></i>၁။ ကားအမျိုးအစား နှင့် Seating Plan သတ်မှတ်ရန်</h6>
               </div>
               <div class="card-body">
@@ -1016,7 +1014,7 @@
 
   <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION + MOBILE NETWORK FIX (FORCE LONG POLLING)
+    // 1. FIREBASE CONFIGURATION + MOBILE NETWORK FIX (SAFE LONG POLLING)
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
@@ -1030,11 +1028,20 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Critical Fix for Myanmar Mobile Networks (MPT/Atom/Ooredoo/Mytel)
-    db.settings({
-      experimentalForceLongPolling: true,
-      merge: true
-    });
+    // Fixed: Removed invalid merge option so Firebase v10 initializes cleanly
+    try {
+      db.settings({
+        experimentalForceLongPolling: true
+      });
+    } catch (e) {
+      console.warn("Firestore settings warning:", e);
+    }
+
+    // Helper: Convert Myanmar numerals (၀-၉) to English numerals (0-9)
+    function normalizeDigits(str) {
+      const mmDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
+      return String(str || '').replace(/[၀-၉]/g, d => mmDigits.indexOf(d));
+    }
 
     // Register Service Worker for Android/iOS PWA Install
     if ('serviceWorker' in navigator) {
@@ -1094,7 +1101,7 @@
     }
 
     // =========================================================================
-    // 2. STATE & SECURITY PIN
+    // 2. STATE & SECURITY PIN (SUPPORTS MYANMAR & ENGLISH DIGITS)
     // =========================================================================
     let storedAdminPin = "1234";
     let busTypes = [];
@@ -1134,15 +1141,18 @@
       db.collection('app_settings').doc('security').onSnapshot(doc => {
         setDbConnectionStatus('connected');
         if (doc.exists && doc.data().adminPin) {
-          storedAdminPin = String(doc.data().adminPin);
+          storedAdminPin = normalizeDigits(String(doc.data().adminPin).trim());
         }
       }, err => setDbConnectionStatus('error', err.message));
     }
 
     function verifyAdminPin(e) {
       e.preventDefault();
-      const entered = document.getElementById('adminPinInput').value.trim();
-      if (entered === storedAdminPin) {
+      const rawVal = document.getElementById('adminPinInput').value.trim();
+      const entered = normalizeDigits(rawVal);
+      const expected = normalizeDigits(storedAdminPin);
+
+      if (entered === expected) {
         sessionStorage.setItem('utt_admin_unlocked', 'true');
         document.getElementById('pinLockOverlay').style.display = 'none';
         document.getElementById('pinErrorMsg').classList.add('d-none');
@@ -1159,12 +1169,17 @@
 
     async function updateAdminPin(e) {
       e.preventDefault();
-      const oldP = document.getElementById('oldPinInput').value.trim();
-      const newP = document.getElementById('newPinInput').value.trim();
-      if (oldP !== storedAdminPin) { alert('လက်ရှိ PIN နံပါတ် မှားယွင်းနေပါသည်။'); return; }
+      const oldP = normalizeDigits(document.getElementById('oldPinInput').value.trim());
+      const newP = normalizeDigits(document.getElementById('newPinInput').value.trim());
+      if (oldP !== normalizeDigits(storedAdminPin)) {
+        alert('လက်ရှိ PIN နံပါတ် မှားယွင်းနေပါသည်။');
+        return;
+      }
       await db.collection('app_settings').doc('security').set({ adminPin: newP }, { merge: true });
       storedAdminPin = newP;
       bootstrap.Modal.getInstance(document.getElementById('changePinModal')).hide();
+      document.getElementById('oldPinInput').value = '';
+      document.getElementById('newPinInput').value = '';
       alert('Admin PIN အသစ် ပြောင်းလဲသိမ်းဆည်းပြီးပါပြီ။');
     }
 
@@ -1461,7 +1476,7 @@
         const tNo = p.ticketNo || '';
         return `
         <div class="card border shadow-sm">
-          <div class="card-body p-2.5 p-2">
+          <div class="card-body p-2">
             <div class="row g-2 align-items-center">
               <div class="col-4 col-md-2">
                 <span class="badge bg-dark w-100 py-1">ခုံ ${p.seatNo}</span>
