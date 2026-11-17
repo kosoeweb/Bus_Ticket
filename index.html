@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Express Bus Online Ticket Booking</title>
+  <!-- Bootstrap 5 & FontAwesome -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <!-- Google Fonts (Myanmar) -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-orange: #ea580c;
+      --primary-orange-hover: #c2410c;
+      --dark-slate: #0f172a;
+      --card-slate: #1e293b;
+    }
+    body {
+      font-family: 'Noto Sans Myanmar', sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      padding-bottom: 60px;
+    }
+    /* Corporate Header */
+    .navbar-brand-header {
+      background: linear-gradient(135deg, var(--dark-slate) 0%, #1e293b 100%);
+      border-bottom: 4px solid var(--primary-orange);
+      color: white;
+    }
+    .btn-orange {
+      background-color: var(--primary-orange);
+      color: white;
+      font-weight: 600;
+      border: none;
+    }
+    .btn-orange:hover {
+      background-color: var(--primary-orange-hover);
+      color: white;
+    }
+    .trip-card {
+      border: 2px solid transparent;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      background: #fff;
+    }
+    .trip-card:hover {
+      border-color: #fdba74;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    }
+    .trip-card.active {
+      border-color: var(--primary-orange);
+      background-color: #fff7ed;
+    }
+    /* Bus Frame & Seating Map */
+    .bus-chassis {
+      max-width: 380px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 3px solid #334155;
+      border-radius: 28px 28px 14px 14px;
+      padding: 20px 16px;
+      box-shadow: inset 0 4px 12px rgba(0,0,0,0.05);
+      position: relative;
+    }
+    .bus-front-windshield {
+      height: 10px;
+      background: #94a3b8;
+      border-radius: 10px;
+      margin-bottom: 14px;
+    }
+    .driver-cab {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      border-bottom: 2px dashed #cbd5e1;
+    }
+    .steering-box {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .door-box {
+      border: 1px dashed #64748b;
+      color: #64748b;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+    }
+    .seat-row {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .seat-btn {
+      height: 52px;
+      border-radius: 10px 10px 6px 6px;
+      border: 2px solid #cbd5e1;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .seat-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 3px;
+      width: 65%;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(0,0,0,0.15);
+    }
+    .seat-btn.available {
+      background-color: #ffffff;
+      border-color: #22c55e;
+      color: #15803d;
+    }
+    .seat-btn.available:hover {
+      background-color: #dcfce7;
+    }
+    .seat-btn.selected {
+      background-color: var(--primary-orange) !important;
+      border-color: #9a3412 !important;
+      color: #ffffff !important;
+      transform: scale(1.04);
+      box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
+    }
+    .seat-btn.booked {
+      background-color: #fef3c7;
+      border-color: #f59e0b;
+      color: #b45309;
+      cursor: not-allowed;
+    }
+    .seat-btn.paid {
+      background-color: #e2e8f0;
+      border-color: #94a3b8;
+      color: #475569;
+      cursor: not-allowed;
+    }
+    .seat-gender-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0px 4px;
+      border-radius: 4px;
+      line-height: 1.1;
+      margin-top: 2px;
+    }
+    .aisle-space {
+      text-align: center;
+      font-size: 0.65rem;
+      color: #94a3b8;
+      user-select: none;
+    }
+    /* Ticket Print Container */
+    .ticket-card-render {
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border: 2px solid #0f172a;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+    .ticket-header {
+      background: #0f172a;
+      color: #fff;
+      border-bottom: 4px solid var(--primary-orange);
+      padding: 14px 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <nav class="navbar navbar-expand-lg navbar-brand-header py-3 shadow-sm sticky-top">
+    <div class="container">
+      <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" href="#">
+        <i class="fa-solid fa-bus-simple text-warning fs-4"></i>
+        <div>
+          <span>EXPRESS BUS TICKETING</span>
+          <small class="d-block text-white-50" style="font-size: 0.72rem;">Online Seat Reservation & E-Ticket Portal</small>
+        </div>
+      </a>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-light" onclick="switchMainView('booking')">
+          <i class="fa-solid fa-chair me-1"></i> ခုံရွေးချယ်ရန်
+        </button>
+        <button class="btn btn-sm btn-warning fw-semibold" onclick="switchMainView('check')">
+          <i class="fa-solid fa-ticket me-1"></i> လက်မှတ်စစ်ရန် / ထုတ်ရန်
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    
+    <!-- VIEW 1: BOOKING PORTAL -->
+    <div id="viewBooking">
+      <!-- Search & Filter Bar -->
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3 p-md-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small text-secondary">ခရီးစဉ် (Route)</label>
+              <select id="filterRoute" class="form-select" onchange="filterTrips()">
+                <option value="ALL">ခရီးစဉ်အားလုံး ပြသမည်</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small text-secondary">ထွက်ခွာမည့်ရက်စွဲ (Travel Date)</label>
+              <input type="date" id="filterDate" class="form-control" onchange="filterTrips()">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+              <button class="btn btn-orange w-100" onclick="filterTrips()">
+                <i class="fa-solid fa-magnifying-glass me-1"></i> ရှာဖွေမည်
+              </button>
+              <button class="btn btn-outline-secondary" onclick="resetFilters()" title="အားလုံးပြန်ပြရန်">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- Left Column: Trip Options List -->
+        <div class="col-lg-5">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="fa-solid fa-route text-warning me-2"></i>ရွေးချယ်နိုင်သော ခရီးစဉ်များ</h6>
+            <span class="badge bg-dark" id="tripCountBadge">0 ခရီးစဉ်</span>
+          </div>
+          <div id="tripListContainer" class="d-flex flex-column gap-3">
+            <div class="text-center py-5 text-muted">
+              <div class="spinner-border text-warning mb-2" role="status"></div>
+              <div>ခရီးစဉ်များ ရယူနေပါသည်...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Seating Plan & Booking Form -->
+        <div class="col-lg-7">
+          <div id="seatPlanPlaceholder" class="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
+            <i class="fa-solid fa-hand-pointer fs-1 text-secondary mb-3 opacity-50"></i>
+            <h6>ဘယ်ဘက်ရှိ ခရီးစဉ်တစ်ခုကို ရွေးချယ်ပါ</h6>
+            <p class="small mb-0">ခရီးစဉ်ရွေးချယ်လိုက်ပါက သက်ဆိုင်ရာကား၏ Live Seating Plan နှင့် ခုံအလွတ်များ ပေါ်လာပါမည်။</p>
+          </div>
+
+          <div id="seatPlanActiveContainer" class="d-none">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+              <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <span class="badge bg-warning text-dark me-2" id="activeTripCode">-</span>
+                  <strong id="activeTripRoute">-</strong>
+                </div>
+                <div class="small">
+                  <i class="fa-regular fa-clock me-1 text-warning"></i> <span id="activeTripTime">-</span>
+                </div>
+              </div>
+
+              <div class="card-body p-3 p-md-4">
+                <!-- Legend -->
+                <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 pb-3 border-bottom small">
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded border border-2 border-success bg-white" style="width:18px;height:18px;"></span> ခုံအလွတ် (Available)
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded" style="width:18px;height:18px;background:#ea580c;"></span> ရွေးထားသောခုံ (Selected)
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded border border-warning" style="width:18px;height:18px;background:#fef3c7;"></span> ဘိုကင်တင်ထားဆဲ (Booked)
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded border border-secondary" style="width:18px;height:18px;background:#e2e8f0;"></span> ရောင်းပြီး (Occupied)
+                  </div>
+                </div>
+
+                <!-- Bus Chassis Layout -->
+                <div class="bus-chassis">
+                  <div class="bus-front-windshield"></div>
+                  <div id="driverCabHeader" class="driver-cab"></div>
+                  <div id="dynamicSeatGrid"></div>
+                </div>
+
+                <!-- Selected Seats & Customer Form -->
+                <div id="bookingFormSection" class="mt-4 pt-4 border-top d-none">
+                  <div class="alert alert-warning d-flex justify-content-between align-items-center py-2 px-3">
+                    <div>
+                      <strong>ရွေးချယ်ထားသောခုံ:</strong> <span id="selectedSeatsLabel" class="fw-bold text-danger"></span>
+                    </div>
+                    <div class="fs-5 fw-bold text-dark" id="selectedTotalAmount">0 MMK</div>
+                  </div>
+
+                  <h6 class="fw-bold mb-3"><i class="fa-solid fa-user-check text-warning me-2"></i>ခရီးသည် အချက်အလက် ဖြည့်သွင်းရန်</h6>
+                  <form id="customerBookingForm" onsubmit="submitCustomerBooking(event)">
+                    <div class="row g-3 mb-3">
+                      <div class="col-md-4">
+                        <label class="form-label small fw-semibold">ဆက်သွယ်ရမည့် အမည် <span class="text-danger">*</span></label>
+                        <input type="text" id="custName" class="form-control" placeholder="ဦး/ဒေါ် အမည်" required>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small fw-semibold">ဖုန်းနံပါတ် <span class="text-danger">*</span></label>
+                        <input type="tel" id="custPhone" class="form-control" placeholder="09xxxxxxxxx" required>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small fw-semibold">မှတ်ပုံတင်နံပါတ် (NRC) <span class="text-danger">*</span></label>
+                        <input type="text" id="custNrc" class="form-control" placeholder="12/Yakana(N)123456" required>
+                      </div>
+                    </div>
+
+                    <!-- Per-Seat Passenger Info & Gender -->
+                    <div class="mb-3">
+                      <label class="form-label small fw-semibold text-secondary">ခုံအလိုက် စီးနင်းမည့်သူ အမျိုးအစား (ကျား/မ/သံဃာ) သတ်မှတ်ပေးပါ-</label>
+                      <div id="perSeatInputContainer" class="d-flex flex-column gap-2"></div>
+                    </div>
+
+                    <button type="submit" id="btnSubmitBooking" class="btn btn-orange w-100 py-2 fs-6 shadow-sm">
+                      <i class="fa-solid fa-paper-plane me-2"></i> ခုံနေရာ အတည်ပြု Book လုပ်မည်
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: CHECK & DOWNLOAD MY TICKET -->
+    <div id="viewCheckTicket" class="d-none">
+      <div class="card border-0 shadow-sm rounded-4 mx-auto" style="max-width: 750px;">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-warning me-2"></i>ဘိုကင်အခြေအနေ စစ်ဆေးရန် နှင့် E-Ticket ထုတ်ယူရန်</h5>
+          <p class="text-muted small mb-3">ဘိုကင်တင်စဉ်က ထည့်သွင်းခဲ့သော ဖုန်းနံပါတ် သို့မဟုတ် Booking ID ကို ရိုက်ထည့်ပါ။ Admin မှ ငွေပေးချေမှု အတည်ပြုပြီးပါက QR Code ပါဝင်သော PDF လက်မှတ်ကို ထုတ်ယူနိုင်ပါသည်။</p>
+          <div class="input-group mb-4">
+            <input type="text" id="searchTicketInput" class="form-control" placeholder="ဖုန်းနံပါတ် (09...) သို့မဟုတ် Booking ID (BK-xxxx)">
+            <button class="btn btn-orange px-4" onclick="lookupCustomerBookings()">
+              <i class="fa-solid fa-magnifying-glass me-1"></i> ရှာဖွေမည်
+            </button>
+          </div>
+
+          <div id="customerTicketResults"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Hidden Ticket Render Container for PDF Generation -->
+  <div class="modal fade" id="ticketPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-header bg-dark text-white">
+          <h6 class="modal-title"><i class="fa-solid fa-ticket text-warning me-2"></i>E-Ticket PDF ထုတ်ယူရန်</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body bg-light p-3">
+          <div id="pdfTicketRenderArea" class="ticket-card-render"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ပိတ်မည်</button>
+          <button type="button" class="btn btn-orange btn-sm" onclick="downloadRenderedTicketPDF()">
+            <i class="fa-solid fa-file-pdf me-1"></i> PDF ဒေါင်းလုဒ်ဆွဲမည်
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Firebase v10 Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // =========================================================================
+    // 1. FIREBASE CONFIGURATION (သင်၏ Firebase Project Config ကို ဤနေရာတွင် အစားထိုးပါ)
+    // =========================================================================
+   const firebaseConfig = {
+  apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
+  authDomain: "my-apps-a87a3.firebaseapp.com",
+  projectId: "my-apps-a87a3",
+  storageBucket: "my-apps-a87a3.firebasestorage.app",
+  messagingSenderId: "880270085984",
+  appId: "1:880270085984:web:94d1895bd28335abaf1805"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // State Variables
+    let busTypesMap = {};
+    let allTrips = [];
+    let filteredTrips = [];
+    let activeTripId = null;
+    let activeTripData = null;
+    let activeTripUnsubscribe = null;
+    let selectedSeats = [];
+    let currentTicketFilename = "Bus-Ticket.pdf";
+
+    const formatMMK = (num) => Number(num || 0).toLocaleString('en-US') + ' MMK';
+
+    // =========================================================================
+    // 2. INITIALIZATION & REAL-TIME LISTENERS
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      // Load Bus Types
+      db.collection('bus_types').onSnapshot(snap => {
+        busTypesMap = {};
+        snap.forEach(doc => { busTypesMap[doc.id] = { id: doc.id, ...doc.data() }; });
+        if (activeTripData) renderSeatMap(activeTripData);
+      });
+
+      // Load Active Trips Real-time
+      db.collection('trips').orderBy('travelDate', 'asc').onSnapshot(snap => {
+        allTrips = [];
+        const routesSet = new Set();
+        snap.forEach(doc => {
+          const data = { id: doc.id, ...doc.data() };
+          allTrips.push(data);
+          routesSet.add(`${data.origin} - ${data.destination}`);
+        });
+        populateRouteDropdown(Array.from(routesSet));
+        filterTrips();
+      });
+    });
+
+    function populateRouteDropdown(routes) {
+      const sel = document.getElementById('filterRoute');
+      const currentVal = sel.value;
+      sel.innerHTML = `<option value="ALL">ခရီးစဉ်အားလုံး ပြသမည်</option>`;
+      routes.forEach(r => {
+        sel.innerHTML += `<option value="${r}">${r}</option>`;
+      });
+      if (routes.includes(currentVal)) sel.value = currentVal;
+    }
+
+    function filterTrips() {
+      const routeVal = document.getElementById('filterRoute').value;
+      const dateVal = document.getElementById('filterDate').value;
+
+      filteredTrips = allTrips.filter(t => {
+        const matchRoute = routeVal === 'ALL' || `${t.origin} - ${t.destination}` === routeVal;
+        const matchDate = !dateVal || t.travelDate === dateVal;
+        return matchRoute && matchDate;
+      });
+
+      document.getElementById('tripCountBadge').textContent = `${filteredTrips.length} ခရီးစဉ်`;
+      renderTripList();
+    }
+
+    function resetFilters() {
+      document.getElementById('filterRoute').value = 'ALL';
+      document.getElementById('filterDate').value = '';
+      filterTrips();
+    }
+
+    function renderTripList() {
+      const container = document.getElementById('tripListContainer');
+      if (filteredTrips.length === 0) {
+        container.innerHTML = `
+          <div class="card border-0 shadow-sm rounded-4 p-4 text-center text-muted">
+            <i class="fa-solid fa-bus-slash fs-2 mb-2"></i>
+            <div>ရွေးချယ်ထားသော ခရီးစဉ် မရှိသေးပါ။</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filteredTrips.map(t => {
+        const busType = busTypesMap[t.busTypeId] || {};
+        const totalSeats = Number(busType.totalSeats || t.totalSeats || 30);
+        const seatsObj = t.seats || {};
+        const occupiedCount = Object.values(seatsObj).filter(s => s.status === 'booked' || s.status === 'paid').length;
+        const availCount = Math.max(0, totalSeats - occupiedCount);
+        const steeringLabel = (t.steering || busType.steering) === 'RHD' ? 'ညာမောင်း (RHD)' : 'ဘယ်မောင်း (LHD)';
+
+        return `
+          <div class="trip-card p-3 shadow-sm ${t.id === activeTripId ? 'active' : ''}" onclick="selectTrip('${t.id}')">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge bg-dark">${t.tripCode}</span>
+              <span class="badge bg-warning text-dark">${busType.typeName || t.busTypeName || 'Express'} • ${steeringLabel}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center my-2">
+              <div>
+                <h6 class="fw-bold mb-1">${t.origin} <i class="fa-solid fa-arrow-right text-warning mx-1"></i> ${t.destination}</h6>
+                <div class="small text-secondary">
+                  <i class="fa-regular fa-calendar me-1"></i> ${t.travelDate} |
+                  <i class="fa-regular fa-clock ms-1 me-1"></i> ထွက်ချိန်: <strong>${t.departureTime}</strong> (ရောက်ချိန်: ${t.arrivalTime})
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+              <span class="small ${availCount > 0 ? 'text-success fw-semibold' : 'text-danger fw-bold'}">
+                <i class="fa-solid fa-chair me-1"></i> ခုံအလွတ် (${availCount}) ခုံကျန်
+              </span>
+              <span class="fs-6 fw-bold text-danger">${formatMMK(t.price)} <small class="text-muted fw-normal">/ ၁ ဦး</small></span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 3. LIVE SEATING PLAN ENGINE
+    // =========================================================================
+    function selectTrip(tripId) {
+      if (activeTripUnsubscribe) activeTripUnsubscribe();
+      activeTripId = tripId;
+      selectedSeats = [];
+      renderTripList();
+
+      document.getElementById('seatPlanPlaceholder').classList.add('d-none');
+      document.getElementById('seatPlanActiveContainer').classList.remove('d-none');
+
+      // Subscribe live to selected Trip document
+      activeTripUnsubscribe = db.collection('trips').doc(tripId).onSnapshot(doc => {
+        if (!doc.exists) return;
+        activeTripData = { id: doc.id, ...doc.data() };
+
+        // Remove any selected seat that just got booked by someone else
+        const seatsMap = activeTripData.seats || {};
+        selectedSeats = selectedSeats.filter(sNo => !seatsMap[sNo] || seatsMap[sNo].status === 'available');
+
+        renderSeatMap(activeTripData);
+        updateBookingFormUI();
+      });
+    }
+
+    function renderSeatMap(trip) {
+      const busType = busTypesMap[trip.busTypeId] || {};
+      const layout = busType.layoutPattern || trip.layoutPattern || '2-2';
+      const totalSeats = Number(busType.totalSeats || trip.totalSeats || 40);
+      const steering = trip.steering || busType.steering || 'LHD';
+      const backRowFull = Boolean(busType.backRowFull);
+      const seatsState = trip.seats || {};
+
+      document.getElementById('activeTripCode').textContent = trip.tripCode;
+      document.getElementById('activeTripRoute').textContent = `${trip.origin} → ${trip.destination} (${trip.travelDate})`;
+      document.getElementById('activeTripTime').textContent = `${trip.departureTime} - ${trip.arrivalTime}`;
+
+      // Render Driver Position (LHD vs RHD)
+      const cabEl = document.getElementById('driverCabHeader');
+      if (steering === 'LHD') {
+        cabEl.innerHTML = `
+          <div class="steering-box"><i class="fa-solid fa-dharmachakra text-warning"></i> ယာဉ်မောင်း (ဘယ်မောင်း)</div>
+          <div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အတက်/အဆင်းပေါက်</div>
+        `;
+      } else {
+        cabEl.innerHTML = `
+          <div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အတက်/အဆင်းပေါက်</div>
+          <div class="steering-box"><i class="fa-solid fa-dharmachakra text-warning"></i> ယာဉ်မောင်း (ညာမောင်း)</div>
+        `;
+      }
+
+      // Determine Columns per row
+      let leftCols = 2, rightCols = 2;
+      if (layout === '2-1') { leftCols = 2; rightCols = 1; }
+      else if (layout === '1-2') { leftCols = 1; rightCols = 2; }
+      else if (layout === '1-1') { leftCols = 1; rightCols = 1; }
+
+      const seatsPerStandardRow = leftCols + rightCols;
+      const totalCols = leftCols + 1 + rightCols; // +1 for aisle
+
+      const gridEl = document.getElementById('dynamicSeatGrid');
+      gridEl.innerHTML = '';
+
+      let seatCounter = 1;
+      let rowIndex = 0;
+
+      while (seatCounter <= totalSeats) {
+        const rowLetter = String.fromCharCode(65 + (rowIndex % 26)) + (rowIndex >= 26 ? Math.floor(rowIndex / 26) : '');
+        const remaining = totalSeats - seatCounter + 1;
+        const isLastFullRow = backRowFull && remaining === (seatsPerStandardRow + 1);
+
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'seat-row';
+        rowDiv.style.gridTemplateColumns = `repeat(${totalCols}, 1fr)`;
+
+        for (let c = 1; c <= totalCols; c++) {
+          if (c === leftCols + 1 && !isLastFullRow) {
+            const aisle = document.createElement('div');
+            aisle.className = 'aisle-space';
+            aisle.textContent = rowLetter;
+            rowDiv.appendChild(aisle);
+          } else {
+            if (seatCounter <= totalSeats) {
+              const colNum = c > leftCols + 1 && !isLastFullRow ? c - 1 : c;
+              const seatNo = `${rowLetter}${colNum}`;
+              const sInfo = seatsState[seatNo] || { status: 'available' };
+              rowDiv.appendChild(createSeatButton(seatNo, sInfo));
+              seatCounter++;
+            } else {
+              rowDiv.appendChild(document.createElement('div'));
+            }
+          }
+        }
+        gridEl.appendChild(rowDiv);
+        rowIndex++;
+      }
+    }
+
+    function createSeatButton(seatNo, sInfo) {
+      const btn = document.createElement('div');
+      const status = sInfo.status || 'available';
+      const isSelected = selectedSeats.includes(seatNo);
+
+      btn.className = `seat-btn ${status} ${isSelected ? 'selected' : ''}`;
+
+      let genderBadge = '';
+      if (status !== 'available' && sInfo.gender) {
+        const gMap = {
+          'M': { text: 'ကျား', cls: 'bg-primary text-white' },
+          'F': { text: 'မ', cls: 'bg-danger text-white' },
+          'Monk': { text: 'သံဃာ', cls: 'bg-warning text-dark' }
+        };
+        const g = gMap[sInfo.gender] || { text: sInfo.gender, cls: 'bg-secondary text-white' };
+        genderBadge = `<span class="seat-gender-tag ${g.cls}">${g.text}</span>`;
+      }
+
+      btn.innerHTML = `<span>${seatNo}</span>${genderBadge}`;
+
+      if (status === 'available') {
+        btn.onclick = () => toggleSeatSelection(seatNo);
+      }
+      return btn;
+    }
+
+    function toggleSeatSelection(seatNo) {
+      const idx = selectedSeats.indexOf(seatNo);
+      if (idx > -1) {
+        selectedSeats.splice(idx, 1);
+      } else {
+        if (selectedSeats.length >= 8) {
+          alert('တစ်ကြိမ်လျှင် အများဆုံး (၈) ခုံအထိသာ ရွေးချယ်နိုင်ပါသည်။');
+          return;
+        }
+        selectedSeats.push(seatNo);
+      }
+      renderSeatMap(activeTripData);
+      updateBookingFormUI();
+    }
+
+    function updateBookingFormUI() {
+      const formSec = document.getElementById('bookingFormSection');
+      if (selectedSeats.length === 0 || !activeTripData) {
+        formSec.classList.add('d-none');
+        return;
+      }
+      formSec.classList.remove('d-none');
+
+      document.getElementById('selectedSeatsLabel').textContent = selectedSeats.join(', ');
+      const totalAmt = selectedSeats.length * Number(activeTripData.price || 0);
+      document.getElementById('selectedTotalAmount').textContent = formatMMK(totalAmt);
+
+      const perSeatContainer = document.getElementById('perSeatInputContainer');
+      perSeatContainer.innerHTML = selectedSeats.map(sNo => `
+        <div class="row g-2 align-items-center bg-light p-2 rounded border">
+          <div class="col-3 col-md-2">
+            <span class="badge bg-dark fs-6 w-100 py-2">ခုံ - ${sNo}</span>
+          </div>
+          <div class="col-9 col-md-4">
+            <select class="form-select form-select-sm seat-gender-select" data-seat="${sNo}" required>
+              <option value="M">ကျား (Male)</option>
+              <option value="F">မ (Female)</option>
+              <option value="Monk">သံဃာတော် (Monk)</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <input type="text" class="form-control form-control-sm seat-pass-name" data-seat="${sNo}" placeholder="စီးနင်းသူအမည် (Optional)">
+          </div>
+          <div class="col-6 col-md-3">
+            <input type="text" class="form-control form-control-sm seat-pass-nrc" data-seat="${sNo}" placeholder="မှတ်ပုံတင် (Optional)">
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // =========================================================================
+    // 4. ATOMIC TRANSACTION BOOKING SUBMISSION
+    // =========================================================================
+    async function submitCustomerBooking(e) {
+      e.preventDefault();
+      if (!activeTripData || selectedSeats.length === 0) return;
+
+      const contactName = document.getElementById('custName').value.trim();
+      const contactPhone = document.getElementById('custPhone').value.trim();
+      const contactNrc = document.getElementById('custNrc').value.trim();
+
+      const btn = document.getElementById('btnSubmitBooking');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> ဘိုကင်တင်နေပါသည်...`;
+
+      const bookingCode = 'BK-' + Date.now().toString().slice(-6);
+      const passengers = selectedSeats.map(sNo => {
+        const gEl = document.querySelector(`.seat-gender-select[data-seat="${sNo}"]`);
+        const nEl = document.querySelector(`.seat-pass-name[data-seat="${sNo}"]`);
+        const nrcEl = document.querySelector(`.seat-pass-nrc[data-seat="${sNo}"]`);
+        return {
+          seatNo: sNo,
+          gender: gEl ? gEl.value : 'M',
+          name: (nEl && nEl.value.trim()) ? nEl.value.trim() : contactName,
+          nrc: (nrcEl && nrcEl.value.trim()) ? nrcEl.value.trim() : contactNrc,
+          ticketToken: `TKT-${activeTripData.tripCode}-${sNo}-${Math.floor(1000 + Math.random() * 9000)}`,
+          boarded: false,
+          boardedAt: null
+        };
+      });
+
+      const tripRef = db.collection('trips').doc(activeTripId);
+      const bookingRef = db.collection('bookings').doc(bookingCode);
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const tripDoc = await transaction.get(tripRef);
+          if (!tripDoc.exists) throw new Error("ခရီးစဉ် မရှိတော့ပါ။");
+
+          const currentSeats = tripDoc.data().seats || {};
+          for (const p of passengers) {
+            if (currentSeats[p.seatNo] && currentSeats[p.seatNo].status !== 'available') {
+              throw new Error(`ခုံနံပါတ် (${p.seatNo}) ကို အခြားသူတစ်ဦး ဦးစွာ ရွေးချယ်သွားပါပြီ။ ကျေးဇူးပြု၍ အခြားခုံ ရွေးချယ်ပေးပါ။`);
+            }
+            currentSeats[p.seatNo] = {
+              status: 'booked',
+              gender: p.gender,
+              bookingId: bookingCode,
+              boarded: false
+            };
+          }
+
+          transaction.update(tripRef, { seats: currentSeats });
+          transaction.set(bookingRef, {
+            bookingId: bookingCode,
+            tripId: activeTripId,
+            tripCode: activeTripData.tripCode,
+            origin: activeTripData.origin,
+            destination: activeTripData.destination,
+            travelDate: activeTripData.travelDate,
+            departureTime: activeTripData.departureTime,
+            arrivalTime: activeTripData.arrivalTime,
+            contactName,
+            contactPhone,
+            contactNrc,
+            paymentStatus: 'pending',
+            totalAmount: selectedSeats.length * Number(activeTripData.price || 0),
+            createdAt: new Date().toISOString(),
+            isNotified: false,
+            passengers
+          });
+        });
+
+        selectedSeats = [];
+        document.getElementById('customerBookingForm').reset();
+        updateBookingFormUI();
+        alert(`ဘိုကင်တင်ခြင်း အောင်မြင်ပါသည်!\nသင်၏ Booking ID မှာ: ${bookingCode} ဖြစ်ပါသည်။\nမကြာမီ Admin ဘက်မှ ဖုန်းဆက်သွယ်၍ အတည်ပြုပေးပါမည်။`);
+      } catch (err) {
+        alert(err.message || "ဘိုကင်တင်ရာတွင် အမှားအယွင်းရှိနေပါသည်။");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane me-2"></i> ခုံနေရာ အတည်ပြု Book လုပ်မည်`;
+      }
+    }
+
+    // =========================================================================
+    // 5. CHECK MY TICKET & DOWNLOAD PDF
+    // =========================================================================
+    function switchMainView(view) {
+      document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
+      document.getElementById('viewCheckTicket').classList.toggle('d-none', view !== 'check');
+    }
+
+    async function lookupCustomerBookings() {
+      const q = document.getElementById('searchTicketInput').value.trim();
+      const resEl = document.getElementById('customerTicketResults');
+      if (!q) return;
+
+      resEl.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-warning"></div></div>`;
+
+      try {
+        const [byPhone, byId] = await Promise.all([
+          db.collection('bookings').where('contactPhone', '==', q).get(),
+          db.collection('bookings').where('bookingId', '==', q.toUpperCase()).get()
+        ]);
+
+        const map = {};
+        byPhone.forEach(d => map[d.id] = d.data());
+        byId.forEach(d => map[d.id] = d.data());
+        const list = Object.values(map);
+
+        if (list.length === 0) {
+          resEl.innerHTML = `<div class="alert alert-secondary text-center">ရှာဖွေထားသော ဖုန်းနံပါတ် သို့မဟုတ် Booking ID ဖြင့် စာရင်းမတွေ့ရှိပါ။</div>`;
+          return;
+        }
+
+        resEl.innerHTML = list.map(b => {
+          const statusBadge = b.paymentStatus === 'paid'
+            ? `<span class="badge bg-success">ငွေပေးချေပြီး (Paid)</span>`
+            : b.paymentStatus === 'cancelled'
+            ? `<span class="badge bg-danger">ပယ်ဖျက်ထားသည်</span>`
+            : `<span class="badge bg-warning text-dark">Admin အတည်ပြုချက် စောင့်ဆိုင်းဆဲ (Pending)</span>`;
+
+          const passBtns = (b.passengers || []).map(p => {
+            if (b.paymentStatus === 'paid') {
+              return `<button class="btn btn-sm btn-orange" onclick='previewCustomerTicket(${JSON.stringify(b)}, ${JSON.stringify(p)})'>
+                <i class="fa-solid fa-file-pdf me-1"></i> ခုံ (${p.seatNo}) လက်မှတ်ထုတ်ရန်
+              </button>`;
+            }
+            return `<span class="badge bg-light text-dark border">ခုံ ${p.seatNo}: ${p.name}</span>`;
+          }).join(' ');
+
+          return `
+            <div class="card border shadow-sm rounded-3 mb-3">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong>${b.bookingId} (${b.tripCode})</strong>
+                  ${statusBadge}
+                </div>
+                <div class="small text-secondary mb-2">
+                  ${b.origin} → ${b.destination} | ရက်စွဲ: ${b.travelDate} (${b.departureTime})
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2 pt-2 border-top">
+                  ${passBtns}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        resEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+      }
+    }
+
+    function previewCustomerTicket(booking, passenger) {
+      currentTicketFilename = `Ticket-${booking.tripCode}-${passenger.seatNo}.pdf`;
+      const container = document.getElementById('pdfTicketRenderArea');
+      container.innerHTML = `
+        <div class="ticket-header d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-0 fw-bold text-warning">EXPRESS BUS E-TICKET</h6>
+            <small class="text-white-50">ခရီးစဉ်ကုတ်: ${booking.tripCode}</small>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-success">PAID / CONFIRMED</span>
+            <div class="small text-white-50">${booking.bookingId}</div>
+          </div>
+        </div>
+        <div class="p-3">
+          <div class="row g-2 mb-3 pb-2 border-bottom">
+            <div class="col-8">
+              <div class="small text-muted">ခရီးစဉ် (Route)</div>
+              <div class="fw-bold fs-6">${booking.origin} → ${booking.destination}</div>
+              <div class="small text-secondary mt-1">ရက်စွဲ: <strong>${booking.travelDate}</strong></div>
+              <div class="small text-secondary">ထွက်ခွာချိန်: <strong>${booking.departureTime}</strong> (ရောက်ချိန်: ${booking.arrivalTime})</div>
+            </div>
+            <div class="col-4 text-end">
+              <div class="small text-muted">ခုံနံပါတ် (Seat)</div>
+              <div class="display-6 fw-bold text-danger">${passenger.seatNo}</div>
+              <span class="badge bg-dark">${passenger.gender === 'M' ? 'ကျား' : passenger.gender === 'F' ? 'မ' : 'သံဃာ'}</span>
+            </div>
+          </div>
+          <div class="row g-2 align-items-center">
+            <div class="col-7">
+              <div class="mb-1"><small class="text-muted d-block">ခရီးသည်အမည်:</small><strong>${passenger.name}</strong></div>
+              <div class="mb-1"><small class="text-muted d-block">မှတ်ပုံတင် (NRC):</small><strong>${passenger.nrc}</strong></div>
+              <div class="mb-1"><small class="text-muted d-block">ဖုန်းနံပါတ်:</small><strong>${booking.contactPhone}</strong></div>
+            </div>
+            <div class="col-5 text-center">
+              <div id="custQrBox" class="d-inline-block p-2 border rounded bg-white"></div>
+              <div class="text-muted" style="font-size:0.65rem;">${passenger.ticketToken}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      new QRCode(document.getElementById('custQrBox'), {
+        text: JSON.stringify({
+          bId: booking.bookingId,
+          tId: booking.tripId,
+          seat: passenger.seatNo,
+          token: passenger.ticketToken
+        }),
+        width: 110,
+        height: 110
+      });
+
+      new bootstrap.Modal(document.getElementById('ticketPreviewModal')).show();
+    }
+
+    function downloadRenderedTicketPDF() {
+      const el = document.getElementById('pdfTicketRenderArea');
+      html2pdf().set({
+        margin: 10,
+        filename: currentTicketFilename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+      }).from(el).save();
+    }
+  </script>
+</body>
+</html>
