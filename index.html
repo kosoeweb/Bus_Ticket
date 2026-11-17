@@ -2,8 +2,17 @@
 <html lang="my">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Universal Travels & Tours - Online Bus Ticketing</title>
+
+  <!-- PWA & Mobile App Meta Tags (Android & iOS) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UTT Bus Ticket">
+  <link rel="apple-touch-icon" href="logo.png">
+
   <!-- Bootstrap 5 & FontAwesome -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -27,9 +36,8 @@
       border-bottom: 4px solid var(--primary-orange);
       color: white;
     }
-    /* Transparent Logo without white square box */
     .brand-logo-img {
-      height: 48px;
+      height: 44px;
       width: auto;
       object-fit: contain;
       background: transparent;
@@ -62,12 +70,12 @@
     }
     /* Bus Chassis & Custom Seating Map */
     .bus-chassis {
-      max-width: 400px;
+      max-width: 390px;
       margin: 0 auto;
       background: #ffffff;
       border: 3px solid #334155;
       border-radius: 28px 28px 14px 14px;
-      padding: 20px 16px;
+      padding: 18px 14px;
       box-shadow: inset 0 4px 12px rgba(0,0,0,0.05);
     }
     .bus-front-windshield {
@@ -87,9 +95,9 @@
     .steering-box {
       background: #1e293b;
       color: #f8fafc;
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 8px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -101,7 +109,7 @@
       color: #0369a1;
       padding: 4px 10px;
       border-radius: 6px;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 600;
       text-align: center;
     }
@@ -110,22 +118,22 @@
       background: #f1f5f9;
       color: #475569;
       border-radius: 8px;
-      height: 52px;
+      height: 50px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
     }
     .seat-row {
       display: grid;
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 7px;
+      margin-bottom: 9px;
       align-items: center;
     }
     .seat-btn {
-      height: 52px;
+      height: 50px;
       border-radius: 10px 10px 6px 6px;
       border: 2px solid #cbd5e1;
       background: #f8fafc;
@@ -134,7 +142,7 @@
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       position: relative;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -177,7 +185,7 @@
       cursor: not-allowed;
     }
     .seat-gender-tag {
-      font-size: 0.62rem;
+      font-size: 0.6rem;
       font-weight: 600;
       padding: 0px 4px;
       border-radius: 4px;
@@ -222,7 +230,7 @@
     }
     .ticket-no-big {
       font-family: monospace, sans-serif;
-      font-size: 1.55rem;
+      font-size: 1.5rem;
       font-weight: 900;
       letter-spacing: 1.5px;
       color: #c2410c;
@@ -232,42 +240,55 @@
 <body>
 
   <!-- Header -->
-  <nav class="navbar navbar-expand-lg navbar-brand-header py-3 shadow-sm sticky-top">
+  <nav class="navbar navbar-expand-lg navbar-brand-header py-2.5 py-2 shadow-sm sticky-top">
     <div class="container">
-      <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-3" href="#">
+      <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" href="#">
         <img src="logo.png" alt="Universal Travels & Tours" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackHeaderIcon').classList.remove('d-none');">
         <i id="fallbackHeaderIcon" class="fa-solid fa-bus-simple text-warning fs-3 d-none"></i>
         <div>
-          <span class="fs-5 tracking-wide">Universal Travels & Tours</span>
-          <small class="d-block text-white-50" style="font-size: 0.74rem;">Online Bus Ticket Reservation & Instant E-Ticket</small>
+          <span class="fs-6 fs-md-5 tracking-wide d-block lh-sm">Universal Travels & Tours</span>
+          <div class="d-flex align-items-center gap-2 mt-0.5">
+            <span id="dbStatusBadge" class="badge bg-warning text-dark" style="font-size:0.65rem;">
+              <i class="fa-solid fa-spinner fa-spin me-1"></i>ချိတ်ဆက်နေသည်...
+            </span>
+          </div>
         </div>
       </a>
-      <div class="d-flex gap-2 mt-2 mt-lg-0">
+      <div class="d-flex flex-wrap gap-1.5 gap-1 mt-2 mt-lg-0">
         <button class="btn btn-sm btn-outline-light" onclick="switchMainView('booking')">
-          <i class="fa-solid fa-chair me-1"></i> ခုံရွေးချယ်ရန်
+          <i class="fa-solid fa-chair me-1"></i> ခုံရွေးရန်
         </button>
         <button class="btn btn-sm btn-warning fw-semibold" onclick="switchMainView('check')">
-          <i class="fa-solid fa-ticket me-1"></i> လက်မှတ်စစ်ရန် / ထုတ်ရန်
+          <i class="fa-solid fa-ticket me-1"></i> လက်မှတ်စစ်/ထုတ်ရန်
+        </button>
+        <button id="btnInstallPwa" class="btn btn-sm btn-light fw-semibold" onclick="triggerPwaInstall()" title="ဖုန်းတွင် App အဖြစ် Install လုပ်ရန်">
+          <i class="fa-solid fa-mobile-screen-button"></i> <span class="d-none d-sm-inline">Install App</span>
         </button>
       </div>
     </div>
   </nav>
 
-  <div class="container mt-4">
+  <div class="container mt-3 mt-md-4">
+
+    <!-- Connection Error Alert Banner -->
+    <div id="dbErrorAlert" class="alert alert-danger d-none small mb-3">
+      <strong><i class="fa-solid fa-triangle-exclamation me-1"></i>Database ချိတ်ဆက်မှု အခက်အခဲရှိနေပါသည်:</strong>
+      <span id="dbErrorText"></span>
+    </div>
     
     <!-- VIEW 1: BOOKING PORTAL -->
     <div id="viewBooking">
       <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-3 p-md-4">
-          <div class="row g-3 align-items-end">
+          <div class="row g-2 g-md-3 align-items-end">
             <div class="col-md-4">
-              <label class="form-label fw-semibold small text-secondary">ခရီးစဉ် (Route)</label>
+              <label class="form-label fw-semibold small text-secondary mb-1">ခရီးစဉ် (Route)</label>
               <select id="filterRoute" class="form-select" onchange="filterTrips()">
                 <option value="ALL">ခရီးစဉ်အားလုံး ပြသမည်</option>
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold small text-secondary">ထွက်ခွာမည့်ရက်စွဲ (Travel Date)</label>
+              <label class="form-label fw-semibold small text-secondary mb-1">ထွက်ခွာမည့်ရက်စွဲ (Travel Date)</label>
               <input type="date" id="filterDate" class="form-control" onchange="filterTrips()">
             </div>
             <div class="col-md-4 d-flex gap-2">
@@ -298,10 +319,10 @@
         </div>
 
         <!-- Right Column: Live Seating Plan & Booking Form -->
-        <div class="col-lg-7">
+        <div class="col-lg-7" id="seatPlanColumn">
           <div id="seatPlanPlaceholder" class="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
             <i class="fa-solid fa-hand-pointer fs-1 text-secondary mb-3 opacity-50"></i>
-            <h6>ဘယ်ဘက်ရှိ ခရီးစဉ်တစ်ခုကို ရွေးချယ်ပါ</h6>
+            <h6>ခရီးစဉ်တစ်ခုကို ရွေးချယ်ပါ</h6>
             <p class="small mb-0">ခရီးစဉ်ရွေးချယ်လိုက်ပါက သက်ဆိုင်ရာကား၏ Live Seating Plan နှင့် ခုံအလွတ်များ ပေါ်လာပါမည်။</p>
           </div>
 
@@ -321,16 +342,16 @@
                 <!-- Legend -->
                 <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 pb-3 border-bottom small">
                   <div class="d-flex align-items-center gap-1">
-                    <span class="d-inline-block rounded border border-2 border-success bg-white" style="width:18px;height:18px;"></span> ခုံအလွတ် (Available)
+                    <span class="d-inline-block rounded border border-2 border-success bg-white" style="width:16px;height:16px;"></span> ခုံအလွတ်
                   </div>
                   <div class="d-flex align-items-center gap-1">
-                    <span class="d-inline-block rounded" style="width:18px;height:18px;background:#ea580c;"></span> ရွေးထားသောခုံ (Selected)
+                    <span class="d-inline-block rounded" style="width:16px;height:16px;background:#ea580c;"></span> ရွေးထားသောခုံ
                   </div>
                   <div class="d-flex align-items-center gap-1">
-                    <span class="d-inline-block rounded border border-warning" style="width:18px;height:18px;background:#fef3c7;"></span> ဘိုကင်တင်ထားဆဲ (Booked)
+                    <span class="d-inline-block rounded border border-warning" style="width:16px;height:16px;background:#fef3c7;"></span> ဘိုကင်တင်ဆဲ
                   </div>
                   <div class="d-flex align-items-center gap-1">
-                    <span class="d-inline-block rounded border border-secondary" style="width:18px;height:18px;background:#e2e8f0;"></span> ရောင်းပြီး (Occupied)
+                    <span class="d-inline-block rounded border border-secondary" style="width:16px;height:16px;background:#e2e8f0;"></span> ရောင်းပြီး
                   </div>
                 </div>
 
@@ -345,14 +366,14 @@
                 <div id="bookingFormSection" class="mt-4 pt-4 border-top d-none">
                   <div class="alert alert-warning d-flex justify-content-between align-items-center py-2 px-3">
                     <div>
-                      <strong>ရွေးချယ်ထားသောခုံ:</strong> <span id="selectedSeatsLabel" class="fw-bold text-danger"></span>
+                      <strong>ရွေးထားသောခုံ:</strong> <span id="selectedSeatsLabel" class="fw-bold text-danger"></span>
                     </div>
                     <div class="fs-5 fw-bold text-dark" id="selectedTotalAmount">0 MMK</div>
                   </div>
 
                   <h6 class="fw-bold mb-3"><i class="fa-solid fa-user-check text-warning me-2"></i>ခရီးသည် အချက်အလက် နှင့် ဂိတ်ခွဲ ရွေးချယ်ရန်</h6>
                   <form id="customerBookingForm" onsubmit="submitCustomerBooking(event)">
-                    <div class="row g-3 mb-3">
+                    <div class="row g-2 g-md-3 mb-3">
                       <div class="col-md-4">
                         <label class="form-label small fw-semibold">ဆက်သွယ်ရမည့် အမည် <span class="text-danger">*</span></label>
                         <input type="text" id="custName" class="form-control" placeholder="ဦး/ဒေါ် အမည်" required>
@@ -367,8 +388,8 @@
                       </div>
                     </div>
 
-                    <!-- Boarding Point (ဂိတ်ခွဲ ရွေးရန်) -->
-                    <div class="row g-3 mb-3">
+                    <!-- Boarding Point & Payment Method -->
+                    <div class="row g-2 g-md-3 mb-3">
                       <div class="col-md-6">
                         <label class="form-label small fw-semibold"><i class="fa-solid fa-location-dot text-danger me-1"></i>ကားပေါ်တက်မည့် ဂိတ်ခွဲ (Boarding Point) <span class="text-danger">*</span></label>
                         <select id="custBoardingPoint" class="form-select" required></select>
@@ -384,10 +405,44 @@
                       </div>
                     </div>
 
-                    <!-- KPay / WavePay Payment Slip Image Upload -->
+                    <!-- KPay / WavePay Account Display + QR Code + Save QR + Copy + Slip Upload -->
                     <div id="paymentSlipBox" class="p-3 bg-light border rounded-3 mb-3">
+                      <div id="transferAccountDisplay" class="p-3 mb-3 rounded-3 border border-warning" style="background-color: #fff7ed;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <span class="badge bg-dark" id="transferMethodBadge">KBZPay (KPay)</span>
+                          <small class="text-danger fw-semibold">ငွေလွှဲပေးပို့ရမည့် အကောင့်</small>
+                        </div>
+                        <div class="fw-bold text-dark fs-6 mt-1" id="transferAccName">Universal Travels & Tours</div>
+
+                        <!-- Phone Number + Copy Button -->
+                        <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded border mt-2">
+                          <div>
+                            <small class="text-muted d-block" style="font-size:0.7rem;">ဖုန်းနံပါတ် / Account No.</small>
+                            <strong class="fs-5 font-monospace text-primary" id="transferAccPhone">09123456789</strong>
+                          </div>
+                          <button type="button" id="btnCopyAccPhone" class="btn btn-sm btn-outline-dark fw-semibold px-3" onclick="copyTransferPhone()">
+                            <i class="fa-regular fa-copy me-1"></i> Copy
+                          </button>
+                        </div>
+
+                        <!-- Payment QR Code Image + Save Button -->
+                        <div id="transferQrSection" class="text-center bg-white p-3 rounded border mt-2 d-none">
+                          <div class="small fw-semibold text-secondary mb-2">QR Code ကို Scan ဖတ်၍ ငွေလွှဲနိုင်ပါသည်</div>
+                          <img id="transferQrImg" src="" alt="Payment QR Code" style="max-width: 190px; max-height: 190px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: zoom-in;" onclick="window.open(this.src, '_blank')">
+                          <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="downloadPaymentQrImage()">
+                              <i class="fa-solid fa-download me-1"></i> QR ပုံသိမ်းမည် (Save QR)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="small text-secondary mt-2" id="transferAccNote">
+                          <i class="fa-solid fa-circle-info text-warning me-1"></i>ငွေလွှဲရာတွင် Note နေရာ၌ မိမိဖုန်းနံပါတ် ထည့်ရေးပေးပါ။
+                        </div>
+                      </div>
+
                       <label class="form-label small fw-bold text-dark mb-1">
-                        <i class="fa-solid fa-receipt text-warning me-1"></i>KPay / WavePay ငွေလွှဲပြေစာ (Screenshot) တင်ရန်
+                        <i class="fa-solid fa-receipt text-warning me-1"></i>ငွေလွှဲပြေစာ (Screenshot) ပုံတင်ရန်
                       </label>
                       <div class="small text-muted mb-2">ငွေလွှဲပြီးပါက ပြေစာပုံကို တစ်ပါတည်း တွဲတင်ပေးပါ (ပုံမတင်ရသေးပါကလည်း ဘိုကင်အရင်တင်နိုင်ပါသည်)။</div>
                       <input type="file" id="paymentSlipInput" class="form-control form-control-sm" accept="image/*" onchange="handleSlipUpload(event)">
@@ -406,7 +461,7 @@
                       <div id="perSeatInputContainer" class="d-flex flex-column gap-2"></div>
                     </div>
 
-                    <button type="submit" id="btnSubmitBooking" class="btn btn-orange w-100 py-2 fs-6 shadow-sm">
+                    <button type="submit" id="btnSubmitBooking" class="btn btn-orange w-100 py-2.5 py-2 fs-6 shadow-sm">
                       <i class="fa-solid fa-paper-plane me-2"></i> ခုံနေရာ အတည်ပြု Book လုပ်မည်
                     </button>
                   </form>
@@ -422,11 +477,11 @@
     <!-- VIEW 2: CHECK & DOWNLOAD MY JPG TICKET -->
     <div id="viewCheckTicket" class="d-none">
       <div class="card border-0 shadow-sm rounded-4 mx-auto" style="max-width: 780px;">
-        <div class="card-body p-4">
-          <h5 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-warning me-2"></i>ဘိုကင်အခြေအနေ စစ်ဆေးရန် နှင့် JPG လက်မှတ် ထုတ်ယူရန်</h5>
+        <div class="card-body p-3 p-md-4">
+          <h5 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-warning me-2"></i>ဘိုကင်စစ်ဆေးရန် နှင့် JPG လက်မှတ် ထုတ်ယူရန်</h5>
           <p class="text-muted small mb-3">ဖုန်းနံပါတ် သို့မဟုတ် Booking No. (ဥပမာ - <code>UB48291</code>) ကို ရိုက်ထည့်ပါ။ Admin မှ ငွေပေးချေမှု အတည်ပြုပြီးပါက QR Code ပါဝင်သော JPG လက်မှတ်ပုံကို တိုက်ရိုက် ဒေါင်းလုဒ်ဆွဲနိုင်ပါသည်။</p>
           <div class="input-group mb-4">
-            <input type="text" id="searchTicketInput" class="form-control" placeholder="ဖုန်းနံပါတ် (09...) သို့မဟုတ် Booking No (ဥပမာ UB12345)">
+            <input type="text" id="searchTicketInput" class="form-control" placeholder="ဖုန်းနံပါတ် (09...) သို့မဟုတ် Booking No">
             <button class="btn btn-orange px-4" onclick="lookupCustomerBookings()">
               <i class="fa-solid fa-magnifying-glass me-1"></i> ရှာဖွေမည်
             </button>
@@ -447,14 +502,43 @@
           <h6 class="modal-title"><i class="fa-solid fa-image text-warning me-2"></i>E-Ticket (JPG) ထုတ်ယူရန်</h6>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body bg-light p-3 overflow-auto">
+        <div class="modal-body bg-light p-2 p-md-3 overflow-auto">
           <div id="jpgTicketRenderArea" class="ticket-card-render"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ပိတ်မည်</button>
-          <button type="button" class="btn btn-orange btn-sm" onclick="downloadTicketAsJPG()">
+          <button type="button" id="btnDownloadJpg" class="btn btn-orange btn-sm" onclick="downloadTicketAsJPG()">
             <i class="fa-solid fa-download me-1"></i> JPG ပုံအဖြစ် ဒေါင်းလုဒ်ဆွဲမည်
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for iOS / Android PWA Install Instructions -->
+  <div class="modal fade" id="pwaInstallGuideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-header bg-dark text-white">
+          <h6 class="modal-title fw-bold"><i class="fa-solid fa-mobile-screen-button text-warning me-2"></i>ဖုန်းတွင် App အဖြစ် Install လုပ်နည်း</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small">
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="fw-bold text-dark mb-1"><i class="fa-brands fa-apple fs-5 me-1"></i> iPhone / iPad (iOS Safari)</div>
+            <ol class="mb-0 ps-3">
+              <li>ဤစာမျက်နှာကို <strong>Safari Browser</strong> ဖြင့် ဖွင့်ပါ။</li>
+              <li>အောက်ခြေရှိ <strong>Share ခလုတ် (<i class="fa-solid fa-arrow-up-from-bracket"></i>)</strong> ကို နှိပ်ပါ။</li>
+              <li>အောက်သို့ဆွဲပြီး <strong>"Add to Home Screen"</strong> ကို နှိပ်၍ <strong>Add</strong> လုပ်ပါ။</li>
+            </ol>
+          </div>
+          <div class="p-3 bg-light rounded-3 border">
+            <div class="fw-bold text-success mb-1"><i class="fa-brands fa-android fs-5 me-1"></i> Android (Google Chrome)</div>
+            <ol class="mb-0 ps-3">
+              <li><strong>Chrome Browser</strong> ညာဘက်အပေါ်ထောင့်ရှိ <strong>အစက် (၃) စက် (⋮)</strong> ကို နှိပ်ပါ။</li>
+              <li><strong>"Install app"</strong> သို့မဟုတ် <strong>"Add to Home screen"</strong> ကို နှိပ်ပါ။</li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>
@@ -470,7 +554,7 @@
 
   <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION
+    // 1. FIREBASE CONFIGURATION + MOBILE NETWORK FIX (FORCE LONG POLLING)
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
@@ -484,6 +568,52 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // Critical Fix for Myanmar Mobile Data Networks (MPT/Atom/Ooredoo/Mytel)
+    db.settings({
+      experimentalForceLongPolling: true,
+      merge: true
+    });
+
+    // Register Service Worker for Android/iOS PWA Install
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+    });
+
+    function triggerPwaInstall() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; });
+      } else {
+        new bootstrap.Modal(document.getElementById('pwaInstallGuideModal')).show();
+      }
+    }
+
+    function setDbConnectionStatus(status, errMsg = "") {
+      const badge = document.getElementById('dbStatusBadge');
+      const errBanner = document.getElementById('dbErrorAlert');
+      if (status === 'connected') {
+        badge.className = 'badge bg-success';
+        badge.style.fontSize = '0.65rem';
+        badge.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i>Online`;
+        errBanner.classList.add('d-none');
+      } else {
+        badge.className = 'badge bg-danger';
+        badge.style.fontSize = '0.65rem';
+        badge.innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i>Offline / Error`;
+        errBanner.classList.remove('d-none');
+        document.getElementById('dbErrorText').textContent = errMsg;
+      }
+    }
+
+    // =========================================================================
+    // 2. STATE & INITIALIZATION
+    // =========================================================================
     let busTypesMap = {};
     let allTrips = [];
     let filteredTrips = [];
@@ -493,6 +623,19 @@
     let selectedSeats = [];
     let currentTicketFilename = "UTT-Ticket.jpg";
     let paymentSlipBase64 = "";
+
+    let paymentAccountsData = {
+      kpayName: "Universal Travels & Tours",
+      kpayPhone: "09123456789",
+      kpayQr: "",
+      waveName: "Universal Travels & Tours",
+      wavePhone: "09123456789",
+      waveQr: "",
+      bankName: "Universal Travels & Tours (AYA / CB Pay)",
+      bankPhone: "09123456789",
+      bankQr: "",
+      paymentNote: "ငွေလွှဲရာတွင် Note နေရာ၌ မိမိဖုန်းနံပါတ် ထည့်ရေးပေးပါ။"
+    };
 
     const formatMMK = (num) => Number(num || 0).toLocaleString('en-US') + ' MMK';
 
@@ -505,17 +648,33 @@
       return res;
     }
 
-    // =========================================================================
-    // 2. INITIALIZATION & REAL-TIME LISTENERS
-    // =========================================================================
     window.addEventListener('DOMContentLoaded', () => {
+      if (window.location.protocol === 'file:') {
+        setDbConnectionStatus('error', 'ဖိုင်ကို ဖုန်းထဲမှ တိုက်ရိုက် (file://) ဖွင့်ထားပါသည်။ GitHub Pages HTTPS Link မှတစ်ဆင့် ဖွင့်ပေးပါ။');
+      }
+
+      toggleSlipSection();
+
+      // Listen to KPay / WavePay Receiver Accounts & QR Codes
+      db.collection('app_settings').doc('payment_accounts').onSnapshot(doc => {
+        setDbConnectionStatus('connected');
+        if (doc.exists) {
+          paymentAccountsData = { ...paymentAccountsData, ...doc.data() };
+        }
+        toggleSlipSection();
+      }, err => setDbConnectionStatus('error', err.message));
+
+      // Listen to Bus Types
       db.collection('bus_types').onSnapshot(snap => {
+        setDbConnectionStatus('connected');
         busTypesMap = {};
         snap.forEach(doc => { busTypesMap[doc.id] = { id: doc.id, ...doc.data() }; });
         if (activeTripData) renderSeatMap(activeTripData);
-      });
+      }, err => setDbConnectionStatus('error', err.message));
 
+      // Listen to Active Trips
       db.collection('trips').orderBy('travelDate', 'asc').onSnapshot(snap => {
+        setDbConnectionStatus('connected');
         allTrips = [];
         const routesSet = new Set();
         snap.forEach(doc => {
@@ -527,7 +686,7 @@
         });
         populateRouteDropdown(Array.from(routesSet));
         filterTrips();
-      });
+      }, err => setDbConnectionStatus('error', err.message));
     });
 
     function populateRouteDropdown(routes) {
@@ -615,6 +774,11 @@
       document.getElementById('seatPlanPlaceholder').classList.add('d-none');
       document.getElementById('seatPlanActiveContainer').classList.remove('d-none');
 
+      // On mobile screens, smoothly scroll down to the seating plan
+      if (window.innerWidth < 992) {
+        document.getElementById('seatPlanColumn').scrollIntoView({ behavior: 'smooth' });
+      }
+
       activeTripUnsubscribe = db.collection('trips').doc(tripId).onSnapshot(doc => {
         if (!doc.exists) return;
         activeTripData = { id: doc.id, ...doc.data() };
@@ -625,7 +789,7 @@
         populateBoardingPointsDropdown(activeTripData);
         renderSeatMap(activeTripData);
         updateBookingFormUI();
-      });
+      }, err => setDbConnectionStatus('error', err.message));
     }
 
     function populateBoardingPointsDropdown(trip) {
@@ -713,7 +877,7 @@
           if (isMidDoorRow && ((doorSide === 'LEFT' && isLeftSide) || (doorSide === 'RIGHT' && isRightSide))) {
             const doorSpan = document.createElement('div');
             doorSpan.className = 'door-box d-flex flex-column justify-content-center align-items-center';
-            doorSpan.style.height = '52px';
+            doorSpan.style.height = '50px';
             if ((doorSide === 'LEFT' && c === 1) || (doorSide === 'RIGHT' && c === totalCols)) {
               doorSpan.innerHTML = `<i class="fa-solid fa-stairs"></i><span>အလယ်တံခါး</span>`;
             } else if (config.hasToilet) {
@@ -802,6 +966,7 @@
         return;
       }
       formSec.classList.remove('d-none');
+      toggleSlipSection();
 
       document.getElementById('selectedSeatsLabel').textContent = selectedSeats.join(', ');
       const totalAmt = selectedSeats.length * Number(activeTripData.price || 0);
@@ -831,11 +996,96 @@
     }
 
     // =========================================================================
-    // 4. PAYMENT SLIP COMPRESSION & ATOMIC BOOKING SUBMISSION
+    // 4. KPAY / WAVEPAY DISPLAY, QR CODE, SAVE QR, COPY BUTTON & SLIP UPLOAD
     // =========================================================================
     function toggleSlipSection() {
-      const method = document.getElementById('custPaymentMethod').value;
-      document.getElementById('paymentSlipBox').classList.toggle('d-none', method === 'Cash at Gate');
+      const methodEl = document.getElementById('custPaymentMethod');
+      const slipBox = document.getElementById('paymentSlipBox');
+      if (!methodEl || !slipBox) return;
+
+      const method = methodEl.value;
+      if (method === 'Cash at Gate') {
+        slipBox.classList.add('d-none');
+        return;
+      }
+      slipBox.classList.remove('d-none');
+
+      const badgeEl = document.getElementById('transferMethodBadge');
+      const nameEl = document.getElementById('transferAccName');
+      const phoneEl = document.getElementById('transferAccPhone');
+      const noteEl = document.getElementById('transferAccNote');
+      const qrSec = document.getElementById('transferQrSection');
+      const qrImg = document.getElementById('transferQrImg');
+
+      badgeEl.textContent = method;
+      let activeQrData = "";
+
+      if (method.includes('KBZPay')) {
+        nameEl.textContent = paymentAccountsData.kpayName || '-';
+        phoneEl.textContent = paymentAccountsData.kpayPhone || '-';
+        activeQrData = paymentAccountsData.kpayQr || "";
+      } else if (method.includes('WavePay')) {
+        nameEl.textContent = paymentAccountsData.waveName || '-';
+        phoneEl.textContent = paymentAccountsData.wavePhone || '-';
+        activeQrData = paymentAccountsData.waveQr || "";
+      } else {
+        nameEl.textContent = paymentAccountsData.bankName || '-';
+        phoneEl.textContent = paymentAccountsData.bankPhone || '-';
+        activeQrData = paymentAccountsData.bankQr || "";
+      }
+
+      if (activeQrData) {
+        qrImg.src = activeQrData;
+        qrSec.classList.remove('d-none');
+      } else {
+        qrImg.src = "";
+        qrSec.classList.add('d-none');
+      }
+
+      noteEl.innerHTML = `<i class="fa-solid fa-circle-info text-warning me-1"></i>${paymentAccountsData.paymentNote || ''}`;
+    }
+
+    function downloadPaymentQrImage() {
+      const qrSrc = document.getElementById('transferQrImg').src;
+      const method = document.getElementById('custPaymentMethod').value.replace(/[^A-Za-z0-9]/g, '');
+      if (!qrSrc) return;
+      const link = document.createElement('a');
+      link.href = qrSrc;
+      link.download = `UTT-${method}-QR.jpg`;
+      link.click();
+    }
+
+    function copyTransferPhone() {
+      const phoneText = document.getElementById('transferAccPhone').textContent.trim();
+      const btn = document.getElementById('btnCopyAccPhone');
+
+      const showCopiedFeedback = () => {
+        btn.innerHTML = `<i class="fa-solid fa-check text-success me-1"></i> Copied!`;
+        btn.classList.replace('btn-outline-dark', 'btn-outline-success');
+        setTimeout(() => {
+          btn.innerHTML = `<i class="fa-regular fa-copy me-1"></i> Copy`;
+          btn.classList.replace('btn-outline-success', 'btn-outline-dark');
+        }, 2000);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(phoneText).then(showCopiedFeedback).catch(() => {
+          fallbackCopyText(phoneText);
+          showCopiedFeedback();
+        });
+      } else {
+        fallbackCopyText(phoneText);
+        showCopiedFeedback();
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
     }
 
     function handleSlipUpload(event) {
@@ -869,6 +1119,9 @@
       document.getElementById('slipPreviewWrapper').classList.add('d-none');
     }
 
+    // =========================================================================
+    // 5. ATOMIC BOOKING SUBMISSION
+    // =========================================================================
     async function submitCustomerBooking(e) {
       e.preventDefault();
       if (!activeTripData || selectedSeats.length === 0) return;
@@ -962,7 +1215,7 @@
     }
 
     // =========================================================================
-    // 5. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE
+    // 6. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE
     // =========================================================================
     function switchMainView(view) {
       document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
@@ -1097,7 +1350,9 @@
         </div>
       `;
 
-      new QRCode(document.getElementById('custQrBox'), {
+      const qrEl = document.getElementById('custQrBox');
+      qrEl.innerHTML = '';
+      new QRCode(qrEl, {
         text: tNo,
         width: 110,
         height: 110
@@ -1107,12 +1362,18 @@
     }
 
     async function downloadTicketAsJPG() {
-      const el = document.getElementById('jpgTicketRenderArea');
-      const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
-      const link = document.createElement('a');
-      link.download = currentTicketFilename;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
-      link.click();
+      const btn = document.getElementById('btnDownloadJpg');
+      btn.disabled = true;
+      try {
+        const el = document.getElementById('jpgTicketRenderArea');
+        const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+        const link = document.createElement('a');
+        link.download = currentTicketFilename;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+      } finally {
+        btn.disabled = false;
+      }
     }
   </script>
 </body>
