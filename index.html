@@ -27,13 +27,12 @@
       border-bottom: 4px solid var(--primary-orange);
       color: white;
     }
+    /* Transparent Logo without white square box */
     .brand-logo-img {
-      height: 46px;
+      height: 48px;
       width: auto;
       object-fit: contain;
-      background: #fff;
-      padding: 3px 6px;
-      border-radius: 8px;
+      background: transparent;
     }
     .btn-orange {
       background-color: var(--primary-orange);
@@ -191,6 +190,13 @@
       color: #94a3b8;
       user-select: none;
     }
+    /* Slip Preview Thumbnail */
+    .slip-preview-img {
+      max-height: 160px;
+      border-radius: 8px;
+      border: 2px solid #cbd5e1;
+      object-fit: contain;
+    }
     /* High-Contrast JPG Ticket Render Box */
     .ticket-card-render {
       width: 500px;
@@ -344,7 +350,7 @@
                     <div class="fs-5 fw-bold text-dark" id="selectedTotalAmount">0 MMK</div>
                   </div>
 
-                  <h6 class="fw-bold mb-3"><i class="fa-solid fa-user-check text-warning me-2"></i>ခရီးသည် အချက်အလက် ဖြည့်သွင်းရန်</h6>
+                  <h6 class="fw-bold mb-3"><i class="fa-solid fa-user-check text-warning me-2"></i>ခရီးသည် အချက်အလက် နှင့် ဂိတ်ခွဲ ရွေးချယ်ရန်</h6>
                   <form id="customerBookingForm" onsubmit="submitCustomerBooking(event)">
                     <div class="row g-3 mb-3">
                       <div class="col-md-4">
@@ -358,6 +364,40 @@
                       <div class="col-md-4">
                         <label class="form-label small fw-semibold">မှတ်ပုံတင်နံပါတ် (NRC) <span class="text-danger">*</span></label>
                         <input type="text" id="custNrc" class="form-control" placeholder="12/Yakana(N)123456" required>
+                      </div>
+                    </div>
+
+                    <!-- Boarding Point (ဂိတ်ခွဲ ရွေးရန်) -->
+                    <div class="row g-3 mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label small fw-semibold"><i class="fa-solid fa-location-dot text-danger me-1"></i>ကားပေါ်တက်မည့် ဂိတ်ခွဲ (Boarding Point) <span class="text-danger">*</span></label>
+                        <select id="custBoardingPoint" class="form-select" required></select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small fw-semibold"><i class="fa-solid fa-wallet text-primary me-1"></i>ငွေပေးချေမည့် နည်းလမ်း</label>
+                        <select id="custPaymentMethod" class="form-select" onchange="toggleSlipSection()">
+                          <option value="KBZPay (KPay)">KBZPay (KPay) ဖြင့် လွှဲမည်</option>
+                          <option value="WavePay">WavePay ဖြင့် လွှဲမည်</option>
+                          <option value="AYA / CB Pay">AYA Pay / CB Pay ဖြင့် လွှဲမည်</option>
+                          <option value="Cash at Gate">ဂိတ်တွင် ငွေသားပေးချေမည်</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- KPay / WavePay Payment Slip Image Upload -->
+                    <div id="paymentSlipBox" class="p-3 bg-light border rounded-3 mb-3">
+                      <label class="form-label small fw-bold text-dark mb-1">
+                        <i class="fa-solid fa-receipt text-warning me-1"></i>KPay / WavePay ငွေလွှဲပြေစာ (Screenshot) တင်ရန်
+                      </label>
+                      <div class="small text-muted mb-2">ငွေလွှဲပြီးပါက ပြေစာပုံကို တစ်ပါတည်း တွဲတင်ပေးပါ (ပုံမတင်ရသေးပါကလည်း ဘိုကင်အရင်တင်နိုင်ပါသည်)။</div>
+                      <input type="file" id="paymentSlipInput" class="form-control form-control-sm" accept="image/*" onchange="handleSlipUpload(event)">
+                      <div id="slipPreviewWrapper" class="mt-2 d-none text-center">
+                        <img id="slipPreviewImg" class="slip-preview-img shadow-sm" src="" alt="Payment Slip">
+                        <div>
+                          <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none" onclick="clearPaymentSlip()">
+                            <i class="fa-solid fa-trash me-1"></i>ပုံပြန်ဖျက်မည်
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -430,16 +470,16 @@
 
   <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION (သင်၏ Firebase Project Config ကို ဤနေရာတွင် အစားထိုးပါ)
+    // 1. FIREBASE CONFIGURATION
     // =========================================================================
     const firebaseConfig = {
-  apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
-  authDomain: "my-apps-a87a3.firebaseapp.com",
-  projectId: "my-apps-a87a3",
-  storageBucket: "my-apps-a87a3.firebasestorage.app",
-  messagingSenderId: "880270085984",
-  appId: "1:880270085984:web:94d1895bd28335abaf1805"
-};
+      apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
+      authDomain: "my-apps-a87a3.firebaseapp.com",
+      projectId: "my-apps-a87a3",
+      storageBucket: "my-apps-a87a3.firebasestorage.app",
+      messagingSenderId: "880270085984",
+      appId: "1:880270085984:web:94d1895bd28335abaf1805"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
@@ -452,10 +492,10 @@
     let activeTripUnsubscribe = null;
     let selectedSeats = [];
     let currentTicketFilename = "UTT-Ticket.jpg";
+    let paymentSlipBase64 = "";
 
     const formatMMK = (num) => Number(num || 0).toLocaleString('en-US') + ' MMK';
 
-    // Clean Alphanumeric Generator (No hyphens or symbols)
     function generateAlphanumericCode(prefix, length = 5) {
       const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
       let res = prefix;
@@ -480,7 +520,6 @@
         const routesSet = new Set();
         snap.forEach(doc => {
           const data = { id: doc.id, ...doc.data() };
-          // Only show active trips to customers
           if ((data.status || 'active') === 'active') {
             allTrips.push(data);
             routesSet.add(`${data.origin} - ${data.destination}`);
@@ -565,7 +604,7 @@
     }
 
     // =========================================================================
-    // 3. CUSTOMIZABLE SEATING PLAN & DOOR ENGINE
+    // 3. CUSTOMIZABLE SEATING PLAN & BOARDING POINTS
     // =========================================================================
     function selectTrip(tripId) {
       if (activeTripUnsubscribe) activeTripUnsubscribe();
@@ -583,9 +622,21 @@
         const seatsMap = activeTripData.seats || {};
         selectedSeats = selectedSeats.filter(sNo => !seatsMap[sNo] || seatsMap[sNo].status === 'available');
 
+        populateBoardingPointsDropdown(activeTripData);
         renderSeatMap(activeTripData);
         updateBookingFormUI();
       });
+    }
+
+    function populateBoardingPointsDropdown(trip) {
+      const sel = document.getElementById('custBoardingPoint');
+      const currentVal = sel.value;
+      const points = (trip.boardingPoints && trip.boardingPoints.length > 0)
+        ? trip.boardingPoints
+        : [`${trip.origin} ပင်မကားဂိတ်`, `${trip.origin} မြို့အထွက် တိုးဂိတ်`];
+
+      sel.innerHTML = points.map(pt => `<option value="${pt}">${pt}</option>`).join('');
+      if (points.includes(currentVal)) sel.value = currentVal;
     }
 
     function renderSeatMap(trip) {
@@ -606,7 +657,6 @@
       document.getElementById('activeTripRoute').textContent = `${trip.origin} → ${trip.destination} (${trip.travelDate})`;
       document.getElementById('activeTripTime').textContent = `${trip.departureTime} - ${trip.arrivalTime}`;
 
-      // Driver Cab & Front Door
       const cabEl = document.getElementById('driverCabHeader');
       if (config.steering === 'LHD') {
         cabEl.innerHTML = `
@@ -660,7 +710,6 @@
             continue;
           }
 
-          // Check Middle Door or Toilet Block on Door Side
           if (isMidDoorRow && ((doorSide === 'LEFT' && isLeftSide) || (doorSide === 'RIGHT' && isRightSide))) {
             const doorSpan = document.createElement('div');
             doorSpan.className = 'door-box d-flex flex-column justify-content-center align-items-center';
@@ -693,7 +742,6 @@
         rowIndex++;
       }
 
-      // Optional Rear Door + Toilet footer
       if (config.doorSystem === 'FRONT_REAR') {
         const rearDiv = document.createElement('div');
         rearDiv.className = 'd-flex justify-content-between align-items-center mt-2 pt-2 border-top';
@@ -783,8 +831,44 @@
     }
 
     // =========================================================================
-    // 4. ATOMIC TRANSACTION BOOKING WITH ALPHANUMERIC CODES
+    // 4. PAYMENT SLIP COMPRESSION & ATOMIC BOOKING SUBMISSION
     // =========================================================================
+    function toggleSlipSection() {
+      const method = document.getElementById('custPaymentMethod').value;
+      document.getElementById('paymentSlipBox').classList.toggle('d-none', method === 'Cash at Gate');
+    }
+
+    function handleSlipUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 750;
+          const scale = img.width > maxW ? (maxW / img.width) : 1;
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          paymentSlipBase64 = canvas.toDataURL('image/jpeg', 0.72);
+          document.getElementById('slipPreviewImg').src = paymentSlipBase64;
+          document.getElementById('slipPreviewWrapper').classList.remove('d-none');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearPaymentSlip() {
+      paymentSlipBase64 = "";
+      document.getElementById('paymentSlipInput').value = "";
+      document.getElementById('slipPreviewWrapper').classList.add('d-none');
+    }
+
     async function submitCustomerBooking(e) {
       e.preventDefault();
       if (!activeTripData || selectedSeats.length === 0) return;
@@ -792,12 +876,13 @@
       const contactName = document.getElementById('custName').value.trim();
       const contactPhone = document.getElementById('custPhone').value.trim();
       const contactNrc = document.getElementById('custNrc').value.trim();
+      const boardingPoint = document.getElementById('custBoardingPoint').value;
+      const paymentMethod = document.getElementById('custPaymentMethod').value;
 
       const btn = document.getElementById('btnSubmitBooking');
       btn.disabled = true;
       btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> ဘိုကင်တင်နေပါသည်...`;
 
-      // Alphanumeric only (no hyphens) for easy manual entry
       const bookingCode = generateAlphanumericCode('UB', 5);
       const shortBatch = bookingCode.slice(2, 6);
 
@@ -849,6 +934,9 @@
             travelDate: activeTripData.travelDate,
             departureTime: activeTripData.departureTime,
             arrivalTime: activeTripData.arrivalTime,
+            boardingPoint,
+            paymentMethod,
+            paymentSlip: paymentSlipBase64 || null,
             contactName,
             contactPhone,
             contactNrc,
@@ -861,6 +949,7 @@
         });
 
         selectedSeats = [];
+        clearPaymentSlip();
         document.getElementById('customerBookingForm').reset();
         updateBookingFormUI();
         alert(`ဘိုကင်တင်ခြင်း အောင်မြင်ပါသည်!\nသင်၏ Booking No. မှာ: ${bookingCode} ဖြစ်ပါသည်။\nမကြာမီ Universal Travels & Tours မှ ဖုန်းဆက်သွယ်၍ အတည်ပြုပေးပါမည်။`);
@@ -912,7 +1001,7 @@
             : `<span class="badge bg-warning text-dark">Admin အတည်ပြုချက် စောင့်ဆိုင်းဆဲ (Pending)</span>`;
 
           const passBtns = (b.passengers || []).map(p => {
-            const tNo = p.ticketNo || p.ticketToken || '';
+            const tNo = p.ticketNo || '';
             if (b.paymentStatus === 'paid') {
               return `<button class="btn btn-sm btn-orange" onclick='previewCustomerTicket(${JSON.stringify(b)}, ${JSON.stringify(p)})'>
                 <i class="fa-solid fa-image me-1"></i> ခုံ ${p.seatNo} (${tNo}) JPG ထုတ်ရန်
@@ -931,8 +1020,11 @@
                   </div>
                   ${statusBadge}
                 </div>
-                <div class="small text-secondary mb-2">
+                <div class="small text-secondary mb-1">
                   ${b.origin} → ${b.destination} | ရက်စွဲ: ${b.travelDate} (${b.departureTime})
+                </div>
+                <div class="small text-dark mb-2">
+                  <i class="fa-solid fa-location-dot text-danger me-1"></i> တက်ရောက်မည့်ဂိတ်: <strong>${b.boardingPoint || '-'}</strong>
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-2 pt-2 border-top">
                   ${passBtns}
@@ -947,14 +1039,14 @@
     }
 
     function previewCustomerTicket(booking, passenger) {
-      const tNo = passenger.ticketNo || passenger.ticketToken || booking.bookingId;
+      const tNo = passenger.ticketNo || booking.bookingId;
       currentTicketFilename = `Ticket-${tNo}.jpg`;
       const container = document.getElementById('jpgTicketRenderArea');
 
       container.innerHTML = `
         <div class="ticket-header d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
-            <img src="logo.png" style="height:38px;background:#fff;padding:2px 5px;border-radius:6px;" onerror="this.style.display='none'">
+            <img src="logo.png" style="height:40px;background:transparent;" onerror="this.style.display='none'">
             <div>
               <h6 class="mb-0 fw-bold text-warning">Universal Travels & Tours</h6>
               <small class="text-white-50">OFFICIAL BUS E-TICKET</small>
@@ -967,7 +1059,6 @@
         </div>
 
         <div class="p-3">
-          <!-- Prominent Ticket Number Banner -->
           <div class="ticket-no-banner d-flex justify-content-between align-items-center mb-3">
             <div>
               <div class="text-uppercase fw-bold text-secondary" style="font-size:0.7rem;">TICKET NO. (လက်မှတ်နံပါတ်)</div>
@@ -985,6 +1076,7 @@
               <div class="fw-bold fs-6">${booking.origin} → ${booking.destination}</div>
               <div class="small text-secondary mt-1">ရက်စွဲ: <strong>${booking.travelDate}</strong> | ခရီးစဉ်ကုတ်: <strong>${booking.tripCode}</strong></div>
               <div class="small text-secondary">ထွက်ချိန်: <strong>${booking.departureTime}</strong> (ရောက်ချိန်: ${booking.arrivalTime})</div>
+              <div class="small text-danger fw-semibold mt-1"><i class="fa-solid fa-location-dot me-1"></i>တက်ရောက်မည့်ဂိတ်: ${booking.boardingPoint || '-'}</div>
             </div>
             <div class="col-4 text-end d-flex flex-column justify-content-center align-items-end">
               <span class="badge bg-dark fs-6 px-3 py-2">${passenger.gender === 'M' ? 'ကျား (Male)' : passenger.gender === 'F' ? 'မ (Female)' : 'သံဃာတော်'}</span>
