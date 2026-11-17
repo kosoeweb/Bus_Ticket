@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="UTT Admin">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="apple-touch-icon" href="app-icon.png">
 
   <!-- Bootstrap 5 & FontAwesome -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -1110,6 +1110,7 @@
     let lastScannedCode = "";
     let lastScannedTime = 0;
     let adminQrImages = { kpay: "", wave: "", bank: "" };
+    let activeAdminTicketPrintData = null;
 
     const formatMMK = (n) => Number(n || 0).toLocaleString('en-US') + ' MMK';
 
@@ -1362,7 +1363,7 @@
     }
 
     // =========================================================================
-    // 5. BOOKINGS MANAGEMENT & JPG EXPORT (QRIOUS FIXED)
+    // 5. BOOKINGS MANAGEMENT & NATIVE CANVAS JPG GENERATOR
     // =========================================================================
     function renderAdminBookingsTable() {
       const tripFilter = document.getElementById('adminFilterTrip').value;
@@ -1558,6 +1559,7 @@
       const p = b.passengers[passengerIndex];
       const tNo = p.ticketNo || b.bookingId;
       adminJpgFilename = `Ticket-${tNo}.jpg`;
+      activeAdminTicketPrintData = { booking: b, passenger: p, tNo };
 
       const box = document.getElementById('adminTicketRenderBox');
       box.innerHTML = `
@@ -1617,32 +1619,156 @@
       `;
 
       const qrEl = document.getElementById('adminQrCanvas');
-      const qr = new QRious({
-        value: tNo,
-        size: 160,
-        background: '#ffffff',
-        foreground: '#0f172a',
-        level: 'M'
-      });
+      const qr = new QRious({ value: tNo, size: 160, background: '#ffffff', foreground: '#0f172a', level: 'M' });
       qrEl.innerHTML = `<img src="${qr.toDataURL('image/png')}" alt="QR Code" style="width:110px;height:110px;display:block;margin:0 auto;">`;
 
       new bootstrap.Modal(document.getElementById('adminTicketModal')).show();
     }
 
     async function downloadAdminTicketJPG() {
+      if (!activeAdminTicketPrintData) return;
       const btn = document.getElementById('btnAdminDownloadJpg');
       btn.disabled = true;
       try {
-        await new Promise(resolve => setTimeout(resolve, 150));
-        const el = document.getElementById('adminTicketRenderBox');
-        const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+        const { booking, passenger, tNo } = activeAdminTicketPrintData;
+        const dataUrl = await renderTicketNativeCanvasJPG(booking, passenger, tNo);
         const link = document.createElement('a');
         link.download = adminJpgFilename;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.href = dataUrl;
         link.click();
       } finally {
         btn.disabled = false;
       }
+    }
+
+    function renderTicketNativeCanvasJPG(booking, passenger, tNo) {
+      return new Promise((resolve) => {
+        const W = 800, H = 980;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(4, 4, W - 8, H - 8);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(8, 8, W - 16, 130);
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(8, 134, W - 16, 8);
+
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 30px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('Universal Travels & Tours', 36, 62);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '18px sans-serif';
+        ctx.fillText('OFFICIAL BUS E-TICKET', 36, 98);
+
+        const isPaid = booking.paymentStatus === 'paid';
+        ctx.fillStyle = isPaid ? '#22c55e' : '#f59e0b';
+        ctx.fillRect(W - 210, 32, 174, 38);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText(booking.paymentStatus.toUpperCase(), W - 170, 57);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 18px monospace';
+        ctx.fillText(`Booking: ${booking.bookingId}`, W - 210, 102);
+
+        ctx.fillStyle = '#fff7ed';
+        ctx.fillRect(36, 170, W - 72, 130);
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(36, 170, W - 72, 130);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 16px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('TICKET NO. (လက်မှတ်နံပါတ်)', 60, 206);
+        ctx.fillStyle = '#c2410c';
+        ctx.font = 'bold 48px monospace';
+        ctx.fillText(tNo, 60, 268);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 16px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('SEAT NO.', W - 190, 206);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 54px sans-serif';
+        ctx.fillText(String(passenger.seatNo), W - 180, 272);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '18px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('ခရီးစဉ် (Route)', 36, 350);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 30px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(`${booking.origin}  →  ${booking.destination}`, 36, 392);
+
+        ctx.fillStyle = '#334155';
+        ctx.font = '22px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(`ရက်စွဲ: ${booking.travelDate}   |   ခရီးစဉ်ကုတ်: ${booking.tripCode}`, 36, 438);
+        ctx.fillText(`ထွက်ချိန်: ${booking.departureTime}   (ရောက်ချိန်: ${booking.arrivalTime})`, 36, 478);
+
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 22px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(`တက်ရောက်မည့်ဂိတ်: ${booking.boardingPoint || '-'}`, 36, 522);
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(36, 555);
+        ctx.lineTo(W - 36, 555);
+        ctx.stroke();
+
+        const genderText = passenger.gender === 'M' ? 'ကျား (Male)' : passenger.gender === 'F' ? 'မ (Female)' : 'သံဃာတော်';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '18px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('ခရီးသည်အမည်:', 36, 600);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 26px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(passenger.name || '-', 36, 636);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '18px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('မှတ်ပုံတင် (NRC):', 36, 690);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 24px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(passenger.nrc || '-', 36, 724);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '18px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('ဖုန်းနံပါတ် / အမျိုးအစား:', 36, 778);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 24px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText(`${booking.contactPhone}  (${genderText})`, 36, 812);
+
+        const qr = new QRious({
+          value: tNo,
+          size: 240,
+          background: '#ffffff',
+          foreground: '#0f172a',
+          level: 'M'
+        });
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(W - 290, 580, 250, 250);
+        ctx.drawImage(qr.canvas, W - 285, 585, 240, 240);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 20px monospace';
+        ctx.fillText(tNo, W - 235, 862);
+
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(8, H - 68, W - 16, 60);
+        ctx.fillStyle = '#475569';
+        ctx.font = '17px "Noto Sans Myanmar", sans-serif';
+        ctx.fillText('ကားမထွက်မီ (၃၀) မိနစ်ကြိုတင်၍ သက်ဆိုင်ရာဂိတ်သို့ ရောက်ရှိပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည်။', 48, H - 30);
+
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      });
     }
 
     // =========================================================================
@@ -2148,7 +2274,7 @@
         <div class="fs-5 fw-bold text-primary">${passenger.name}</div>
         <div class="small text-secondary">${passenger.nrc} | ${targetBooking.tripCode}</div>
         <div class="small text-danger fw-semibold mt-1">${targetBooking.boardingPoint || '-'}</div>
-        <div class="badge bg-success mt-2 px-3 py-2">${nowStr}</div>
+        <div class="badge bg-success mt-3 px-3 py-2">${nowStr}</div>
       `;
       resBox.innerHTML = `<div class="alert alert-success p-3 text-center">${okHtml}</div>`;
       showQrResultPopup('success', 'ကားပေါ်တက်ရောက်ခွင့် အတည်ပြုပြီး', okHtml);
