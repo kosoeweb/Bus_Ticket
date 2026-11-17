@@ -1,4 +1,4 @@
-const CACHE_NAME = 'utt-bus-app-v1';
+const CACHE_NAME = 'utt-bus-app-v2';
 const ASSETS = ['./admin.html', './index.html', './logo.png'];
 
 self.addEventListener('install', (e) => {
