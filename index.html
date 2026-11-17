@@ -1398,12 +1398,23 @@
           ctx.fillStyle = '#ea580c';
           ctx.fillRect(8, 134, W - 16, 8);
 
-          // Draw Logo if available
+          // Draw Logo with Aspect Ratio Preserved
           let textStartX = 36;
           if (logoImg) {
             try {
-              ctx.drawImage(logoImg, 32, 28, 90, 85);
-              textStartX = 134;
+              const maxW = 100, maxH = 85;
+              const imgRatio = logoImg.width / logoImg.height;
+              let drawW = maxW, drawH = maxH;
+              if (imgRatio > 1) {
+                drawH = maxW / imgRatio;
+              } else {
+                drawW = maxH * imgRatio;
+              }
+              const drawX = 36 + (maxW - drawW) / 2;
+              const drawY = 28 + (maxH - drawH) / 2;
+
+              ctx.drawImage(logoImg, drawX, drawY, drawW, drawH);
+              textStartX = 146;
             } catch (e) {}
           }
 
