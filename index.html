@@ -240,21 +240,21 @@
 <body>
 
   <!-- Header -->
-  <nav class="navbar navbar-expand-lg navbar-brand-header py-2.5 py-2 shadow-sm sticky-top">
+  <nav class="navbar navbar-expand-lg navbar-brand-header py-2 shadow-sm sticky-top">
     <div class="container">
       <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" href="#">
         <img src="logo.png" alt="Universal Travels & Tours" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackHeaderIcon').classList.remove('d-none');">
         <i id="fallbackHeaderIcon" class="fa-solid fa-bus-simple text-warning fs-3 d-none"></i>
         <div>
           <span class="fs-6 fs-md-5 tracking-wide d-block lh-sm">Universal Travels & Tours</span>
-          <div class="d-flex align-items-center gap-2 mt-0.5">
+          <div class="d-flex align-items-center gap-2 mt-1">
             <span id="dbStatusBadge" class="badge bg-warning text-dark" style="font-size:0.65rem;">
               <i class="fa-solid fa-spinner fa-spin me-1"></i>ချိတ်ဆက်နေသည်...
             </span>
           </div>
         </div>
       </a>
-      <div class="d-flex flex-wrap gap-1.5 gap-1 mt-2 mt-lg-0">
+      <div class="d-flex flex-wrap gap-1 mt-2 mt-lg-0">
         <button class="btn btn-sm btn-outline-light" onclick="switchMainView('booking')">
           <i class="fa-solid fa-chair me-1"></i> ခုံရွေးရန်
         </button>
@@ -461,7 +461,7 @@
                       <div id="perSeatInputContainer" class="d-flex flex-column gap-2"></div>
                     </div>
 
-                    <button type="submit" id="btnSubmitBooking" class="btn btn-orange w-100 py-2.5 py-2 fs-6 shadow-sm">
+                    <button type="submit" id="btnSubmitBooking" class="btn btn-orange w-100 py-2 fs-6 shadow-sm">
                       <i class="fa-solid fa-paper-plane me-2"></i> ခုံနေရာ အတည်ပြု Book လုပ်မည်
                     </button>
                   </form>
@@ -554,7 +554,7 @@
 
   <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION + MOBILE NETWORK FIX (FORCE LONG POLLING)
+    // 1. FIREBASE CONFIGURATION + SAFE LONG POLLING (NO MERGE BUG)
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
@@ -568,11 +568,19 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Critical Fix for Myanmar Mobile Data Networks (MPT/Atom/Ooredoo/Mytel)
-    db.settings({
-      experimentalForceLongPolling: true,
-      merge: true
-    });
+    try {
+      db.settings({
+        experimentalForceLongPolling: true
+      });
+    } catch (e) {
+      console.warn("Firestore settings warning:", e);
+    }
+
+    // Helper: Convert Myanmar numerals (၀-၉) to English numerals (0-9)
+    function normalizeDigits(str) {
+      const mmDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
+      return String(str || '').replace(/[၀-၉]/g, d => mmDigits.indexOf(d));
+    }
 
     // Register Service Worker for Android/iOS PWA Install
     if ('serviceWorker' in navigator) {
@@ -655,7 +663,6 @@
 
       toggleSlipSection();
 
-      // Listen to KPay / WavePay Receiver Accounts & QR Codes
       db.collection('app_settings').doc('payment_accounts').onSnapshot(doc => {
         setDbConnectionStatus('connected');
         if (doc.exists) {
@@ -664,7 +671,6 @@
         toggleSlipSection();
       }, err => setDbConnectionStatus('error', err.message));
 
-      // Listen to Bus Types
       db.collection('bus_types').onSnapshot(snap => {
         setDbConnectionStatus('connected');
         busTypesMap = {};
@@ -672,7 +678,6 @@
         if (activeTripData) renderSeatMap(activeTripData);
       }, err => setDbConnectionStatus('error', err.message));
 
-      // Listen to Active Trips
       db.collection('trips').orderBy('travelDate', 'asc').onSnapshot(snap => {
         setDbConnectionStatus('connected');
         allTrips = [];
@@ -774,7 +779,6 @@
       document.getElementById('seatPlanPlaceholder').classList.add('d-none');
       document.getElementById('seatPlanActiveContainer').classList.remove('d-none');
 
-      // On mobile screens, smoothly scroll down to the seating plan
       if (window.innerWidth < 992) {
         document.getElementById('seatPlanColumn').scrollIntoView({ behavior: 'smooth' });
       }
@@ -1127,7 +1131,7 @@
       if (!activeTripData || selectedSeats.length === 0) return;
 
       const contactName = document.getElementById('custName').value.trim();
-      const contactPhone = document.getElementById('custPhone').value.trim();
+      const contactPhone = normalizeDigits(document.getElementById('custPhone').value.trim());
       const contactNrc = document.getElementById('custNrc').value.trim();
       const boardingPoint = document.getElementById('custBoardingPoint').value;
       const paymentMethod = document.getElementById('custPaymentMethod').value;
@@ -1215,7 +1219,7 @@
     }
 
     // =========================================================================
-    // 6. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE
+    // 6. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE (SUPPORTS MYANMAR DIGITS)
     // =========================================================================
     function switchMainView(view) {
       document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
@@ -1223,7 +1227,8 @@
     }
 
     async function lookupCustomerBookings() {
-      const q = document.getElementById('searchTicketInput').value.trim();
+      const rawInput = document.getElementById('searchTicketInput').value.trim();
+      const q = normalizeDigits(rawInput);
       const resEl = document.getElementById('customerTicketResults');
       if (!q) return;
 
