@@ -546,7 +546,7 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- Firebase v10 Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -1217,7 +1217,7 @@
     }
 
     // =========================================================================
-    // 6. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE (QR CANVAS FIXED)
+    // 6. CHECK MY TICKET & DOWNLOAD AS JPG IMAGE (QRIOUS FIXED)
     // =========================================================================
     function switchMainView(view) {
       document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
@@ -1354,24 +1354,14 @@
       `;
 
       const qrEl = document.getElementById('custQrBox');
-      qrEl.innerHTML = '';
-      new QRCode(qrEl, {
-        text: tNo,
-        width: 110,
-        height: 110,
-        correctLevel: QRCode.CorrectLevel.M
+      const qr = new QRious({
+        value: tNo,
+        size: 160,
+        background: '#ffffff',
+        foreground: '#0f172a',
+        level: 'M'
       });
-
-      // QR နေရာ အလွတ်မဖြစ်စေရန် Canvas ကို တိုက်ရိုက်ပြသပြီး async img ကို ဖယ်ရှားခြင်း
-      const qrCanvas = qrEl.querySelector('canvas');
-      const qrImg = qrEl.querySelector('img');
-      if (qrCanvas) {
-        qrCanvas.style.display = 'block';
-        qrCanvas.style.margin = '0 auto';
-      }
-      if (qrImg) {
-        qrImg.remove();
-      }
+      qrEl.innerHTML = `<img src="${qr.toDataURL('image/png')}" alt="QR Code" style="width:110px;height:110px;display:block;margin:0 auto;">`;
 
       new bootstrap.Modal(document.getElementById('ticketPreviewModal')).show();
     }
