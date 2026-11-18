@@ -68,9 +68,9 @@
       border-color: var(--primary-orange);
       background-color: #fff7ed;
     }
-    /* Bus Chassis & Custom Seating Map */
+    /* Bus Chassis & Custom Seating Map (Exact Match with Admin Preview) */
     .bus-chassis {
-      max-width: 390px;
+      max-width: 400px;
       margin: 0 auto;
       background: #ffffff;
       border: 3px solid #334155;
@@ -128,7 +128,7 @@
     }
     .seat-row {
       display: grid;
-      gap: 7px;
+      gap: 6px;
       margin-bottom: 9px;
       align-items: center;
     }
@@ -157,6 +157,16 @@
       border-radius: 2px;
       background: rgba(0,0,0,0.15);
     }
+    /* Smaller Compact Box for Center / Aisle Seat */
+    .seat-btn.aisle-seat {
+      height: 36px;
+      border-radius: 7px;
+      border-style: dashed;
+      font-size: 0.72rem;
+    }
+    .seat-btn.aisle-seat::after {
+      display: none;
+    }
     .seat-btn.available {
       background-color: #ffffff;
       border-color: #22c55e;
@@ -168,6 +178,7 @@
     .seat-btn.selected {
       background-color: var(--primary-orange) !important;
       border-color: #9a3412 !important;
+      border-style: solid !important;
       color: #ffffff !important;
       transform: scale(1.04);
       box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
@@ -185,12 +196,12 @@
       cursor: not-allowed;
     }
     .seat-gender-tag {
-      font-size: 0.6rem;
+      font-size: 0.58rem;
       font-weight: 600;
       padding: 0px 4px;
       border-radius: 4px;
       line-height: 1.1;
-      margin-top: 2px;
+      margin-top: 1px;
     }
     .aisle-space {
       text-align: center;
@@ -340,9 +351,12 @@
 
               <div class="card-body p-3 p-md-4">
                 <!-- Legend -->
-                <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 pb-3 border-bottom small">
+                <div class="d-flex flex-wrap justify-content-center gap-3 mb-3 pb-3 border-bottom small">
                   <div class="d-flex align-items-center gap-1">
-                    <span class="d-inline-block rounded border border-2 border-success bg-white" style="width:16px;height:16px;"></span> ခုံအလွတ်
+                    <span class="d-inline-block rounded border border-2 border-success bg-white" style="width:16px;height:16px;"></span> ပုံမှန်ခုံအလွတ်
+                  </div>
+                  <div id="legendAisleSeatItem" class="d-flex align-items-center gap-1 d-none">
+                    <span class="d-inline-block rounded border border-success bg-white" style="width:13px;height:13px;border-style:dashed !important;"></span> အလယ်ခုံ (M)
                   </div>
                   <div class="d-flex align-items-center gap-1">
                     <span class="d-inline-block rounded" style="width:16px;height:16px;background:#ea580c;"></span> ရွေးထားသောခုံ
@@ -354,6 +368,9 @@
                     <span class="d-inline-block rounded border border-secondary" style="width:16px;height:16px;background:#e2e8f0;"></span> ရောင်းပြီး
                   </div>
                 </div>
+
+                <!-- Price Info Banner for Trip -->
+                <div id="activeTripPriceBanner" class="text-center small mb-3"></div>
 
                 <!-- Bus Chassis Layout -->
                 <div class="bus-chassis">
@@ -547,13 +564,12 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- Firebase v10 Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
   <script>
-     // =========================================================================
+    // =========================================================================
     // 1. FIREBASE CONFIGURATION + LOW-READ CACHE OPTIMIZATION
     // =========================================================================
     const firebaseConfig = {
@@ -624,6 +640,7 @@
     let activeTripData = null;
     let activeTripUnsubscribe = null;
     let selectedSeats = [];
+    let seatMetaMap = {}; // Maps seatNo -> { isAisle, price }
     let currentTicketFilename = "UTT-Ticket.jpg";
     let paymentSlipBase64 = "";
     let activeTicketPrintData = null;
@@ -641,7 +658,7 @@
       paymentNote: "ငွေလွှဲရာတွင် Note နေရာ၌ မိမိဖုန်းနံပါတ် ထည့်ရေးပေးပါ။"
     };
 
-    const CACHE_TTL_MS = 15 * 60 * 1000; // 15 Minutes Cache for static settings
+    const CACHE_TTL_MS = 15 * 60 * 1000;
     const formatMMK = (num) => Number(num || 0).toLocaleString('en-US') + ' MMK';
 
     function generateAlphanumericCode(prefix, length = 5) {
@@ -667,7 +684,6 @@
       ]);
     });
 
-    // 1. Fetch Payment Accounts with 15-min Local Cache (Saves continuous reads)
     async function loadPaymentAccountsOnce() {
       try {
         const cachedRaw = localStorage.getItem('utt_cache_pay_acc');
@@ -691,7 +707,6 @@
       }
     }
 
-    // 2. Fetch Bus Types with 15-min Local Cache
     async function loadBusTypesOnce() {
       try {
         const cachedRaw = localStorage.getItem('utt_cache_bus_types');
@@ -712,7 +727,6 @@
       }
     }
 
-    // 3. Fetch ONLY Active Trips via .get() instead of reading all historical trips continuously
     async function loadActiveTripsOnce() {
       try {
         const snap = await db.collection('trips').where('status', '==', 'active').get();
@@ -775,11 +789,20 @@
 
       container.innerHTML = filteredTrips.map(t => {
         const busType = busTypesMap[t.busTypeId] || {};
-        const totalSeats = Number(busType.totalSeats || t.totalSeats || 30);
+        const regSeats = Number(t.totalSeats ?? busType.totalSeats ?? 30);
+        const hasAisle = Boolean(t.hasAisleSeats ?? busType.hasAisleSeats);
+        const aisleSeats = hasAisle ? Number(t.aisleSeatCount ?? busType.aisleSeatCount ?? 0) : 0;
+        const totalSeats = regSeats + aisleSeats;
+
         const seatsObj = t.seats || {};
         const occupiedCount = Object.values(seatsObj).filter(s => s.status === 'booked' || s.status === 'paid').length;
         const availCount = Math.max(0, totalSeats - occupiedCount);
         const steeringLabel = (t.steering || busType.steering) === 'RHD' ? 'ညာမောင်း (RHD)' : 'ဘယ်မောင်း (LHD)';
+
+        const hasDiffAisle = hasAisle && t.aislePrice && Number(t.aislePrice) !== Number(t.price);
+        const aislePriceTag = hasDiffAisle
+          ? `<div class="text-secondary" style="font-size:0.72rem;">အလယ်ခုံ: <strong>${formatMMK(t.aislePrice)}</strong></div>`
+          : '';
 
         return `
           <div class="trip-card p-3 shadow-sm ${t.id === activeTripId ? 'active' : ''}" onclick="selectTrip('${t.id}')">
@@ -798,7 +821,10 @@
               <span class="small ${availCount > 0 ? 'text-success fw-semibold' : 'text-danger fw-bold'}">
                 <i class="fa-solid fa-chair me-1"></i> ခုံအလွတ် (${availCount}) ခုံကျန်
               </span>
-              <span class="fs-6 fw-bold text-danger">${formatMMK(t.price)} <small class="text-muted fw-normal">/ ၁ ဦး</small></span>
+              <div class="text-end">
+                <span class="fs-6 fw-bold text-danger">${formatMMK(t.price)} <small class="text-muted fw-normal">/ ၁ ဦး</small></span>
+                ${aislePriceTag}
+              </div>
             </div>
           </div>
         `;
@@ -806,7 +832,7 @@
     }
 
     // =========================================================================
-    // 3. SINGLE-TRIP LIVE SEATING LISTENER (MINIMAL READS)
+    // 3. CUSTOMIZABLE SEATING PLAN (EXACT MATCH WITH ADMIN SETUP PREVIEW)
     // =========================================================================
     function selectTrip(tripId) {
       if (activeTripUnsubscribe) {
@@ -824,12 +850,10 @@
         document.getElementById('seatPlanColumn').scrollIntoView({ behavior: 'smooth' });
       }
 
-      // Listen ONLY to this 1 selected trip document for live seat updates
       activeTripUnsubscribe = db.collection('trips').doc(tripId).onSnapshot(doc => {
         if (!doc.exists) return;
         activeTripData = { id: doc.id, ...doc.data() };
 
-        // Sync seats back to allTrips array locally without extra query
         const idx = allTrips.findIndex(x => x.id === doc.id);
         if (idx > -1) allTrips[idx].seats = activeTripData.seats;
 
@@ -856,30 +880,55 @@
     function renderSeatMap(trip) {
       const busType = busTypesMap[trip.busTypeId] || {};
       const config = {
-        steering: trip.steering || busType.steering || 'LHD',
-        layoutPattern: busType.layoutPattern || trip.layoutPattern || '2-2',
-        totalSeats: Number(busType.totalSeats || trip.totalSeats || 40),
-        numberingStyle: busType.numberingStyle || 'ALPHA',
-        doorSystem: busType.doorSystem || 'FRONT_ONLY',
-        midDoorRow: Number(busType.midDoorRow || 5),
-        hasToilet: Boolean(busType.hasToilet),
-        backRowFull: Boolean(busType.backRowFull)
+        steering: trip.steering ?? busType.steering ?? 'LHD',
+        layoutPattern: trip.layoutPattern ?? busType.layoutPattern ?? '2-2',
+        totalSeats: Number(trip.totalSeats ?? busType.totalSeats ?? 40),
+        numberingStyle: trip.numberingStyle ?? busType.numberingStyle ?? 'ALPHA',
+        doorSystem: trip.doorSystem ?? busType.doorSystem ?? 'FRONT_ONLY',
+        midDoorRow: Number(trip.midDoorRow ?? busType.midDoorRow ?? 5),
+        hasToilet: Boolean(trip.hasToilet ?? busType.hasToilet),
+        backRowFull: Boolean(trip.backRowFull ?? busType.backRowFull),
+        hasAisleSeats: Boolean(trip.hasAisleSeats ?? busType.hasAisleSeats),
+        aisleSeatCount: Number(trip.aisleSeatCount ?? busType.aisleSeatCount ?? 0)
       };
+
+      const stdPrice = Number(trip.price || 0);
+      const aislePrice = (config.hasAisleSeats && trip.aislePrice && Number(trip.aislePrice) > 0)
+        ? Number(trip.aislePrice)
+        : stdPrice;
+
+      seatMetaMap = {};
       const seatsState = trip.seats || {};
 
       document.getElementById('activeTripCode').textContent = trip.tripCode;
       document.getElementById('activeTripRoute').textContent = `${trip.origin} → ${trip.destination} (${trip.travelDate})`;
       document.getElementById('activeTripTime').textContent = `${trip.departureTime} - ${trip.arrivalTime}`;
 
+      // Show/Hide Aisle Seat Legend & Price Info
+      document.getElementById('legendAisleSeatItem').classList.toggle('d-none', !config.hasAisleSeats);
+      const priceBanner = document.getElementById('activeTripPriceBanner');
+      if (config.hasAisleSeats && aislePrice !== stdPrice) {
+        priceBanner.innerHTML = `
+          <span class="badge bg-light text-dark border px-2 py-1 me-1">ပုံမှန်ခုံ: <strong class="text-danger">${formatMMK(stdPrice)}</strong></span>
+          <span class="badge bg-warning text-dark px-2 py-1">အလယ်ခုံ (M): <strong>${formatMMK(aislePrice)}</strong></span>
+        `;
+      } else {
+        priceBanner.innerHTML = `<span class="badge bg-light text-dark border px-3 py-1">လက်မှတ်နှုန်းထား: <strong class="text-danger">${formatMMK(stdPrice)}</strong></span>`;
+      }
+
+      const hasFrontDoor = (config.doorSystem === 'FRONT_ONLY' || config.doorSystem === 'FRONT_MID' || config.doorSystem === 'FRONT_REAR');
+      const hasMidDoor = (config.doorSystem === 'MID_ONLY' || config.doorSystem === 'FRONT_MID');
+      const hasRearDoor = (config.doorSystem === 'FRONT_REAR');
+
       const cabEl = document.getElementById('driverCabHeader');
       if (config.steering === 'LHD') {
         cabEl.innerHTML = `
           <div class="steering-box"><i class="fa-solid fa-dharmachakra text-warning"></i> ယာဉ်မောင်း (ဘယ်မောင်း)</div>
-          <div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အရှေ့တံခါးပေါက်</div>
+          ${hasFrontDoor ? `<div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အရှေ့တံခါးပေါက်</div>` : `<div class="small text-muted">တံခါးမပါ</div>`}
         `;
       } else {
         cabEl.innerHTML = `
-          <div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အရှေ့တံခါးပေါက်</div>
+          ${hasFrontDoor ? `<div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အရှေ့တံခါးပေါက်</div>` : `<div class="small text-muted">တံခါးမပါ</div>`}
           <div class="steering-box"><i class="fa-solid fa-dharmachakra text-warning"></i> ယာဉ်မောင်း (ညာမောင်း)</div>
         `;
       }
@@ -890,37 +939,60 @@
       else if (config.layoutPattern === '1-1') { leftCols = 1; rightCols = 1; }
 
       const seatsPerStandardRow = leftCols + rightCols;
+      const aisleCol = leftCols + 1;
       const totalCols = leftCols + 1 + rightCols;
       const doorSide = config.steering === 'LHD' ? 'RIGHT' : 'LEFT';
+
+      const colWidths = [];
+      for (let c = 1; c <= totalCols; c++) {
+        colWidths.push(c === aisleCol ? '0.78fr' : '1fr');
+      }
+      const gridTemplate = colWidths.join(' ');
 
       const gridEl = document.getElementById('dynamicSeatGrid');
       gridEl.innerHTML = '';
 
       let seatCounter = 1;
+      let aisleCounter = 1;
       let rowIndex = 0;
 
-      while (seatCounter <= config.totalSeats) {
+      while (seatCounter <= config.totalSeats && rowIndex < 30) {
         const currentRowNum = rowIndex + 1;
         const rowLetter = String.fromCharCode(65 + (rowIndex % 26)) + (rowIndex >= 26 ? Math.floor(rowIndex / 26) : '');
         const remaining = config.totalSeats - seatCounter + 1;
         const isLastFullRow = config.backRowFull && remaining === (seatsPerStandardRow + 1);
-        const isMidDoorRow = (config.doorSystem === 'FRONT_MID' && currentRowNum === config.midDoorRow);
+        const isMidDoorRow = (hasMidDoor && currentRowNum === config.midDoorRow);
 
         const rowDiv = document.createElement('div');
         rowDiv.className = 'seat-row';
-        rowDiv.style.gridTemplateColumns = `repeat(${totalCols}, 1fr)`;
+        rowDiv.style.gridTemplateColumns = gridTemplate;
 
         let colSeatIdx = 1;
         for (let c = 1; c <= totalCols; c++) {
           const isLeftSide = c <= leftCols;
-          const isRightSide = c > leftCols + 1;
-          const isAisle = c === leftCols + 1;
+          const isRightSide = c > aisleCol;
+          const isAisle = c === aisleCol;
 
-          if (isAisle && !isLastFullRow) {
-            const aisle = document.createElement('div');
-            aisle.className = 'aisle-space';
-            aisle.textContent = rowLetter;
-            rowDiv.appendChild(aisle);
+          if (isAisle) {
+            if (isLastFullRow && seatCounter <= config.totalSeats) {
+              const seatNo = config.numberingStyle === 'NUMERIC' ? String(seatCounter) : `${rowLetter}${colSeatIdx}`;
+              seatMetaMap[seatNo] = { isAisle: false, price: stdPrice };
+              const sInfo = seatsState[seatNo] || { status: 'available' };
+              rowDiv.appendChild(createSeatButton(seatNo, sInfo, false));
+              seatCounter++;
+              colSeatIdx++;
+            } else if (config.hasAisleSeats && !isMidDoorRow && aisleCounter <= config.aisleSeatCount) {
+              const seatNo = `M${aisleCounter}`;
+              seatMetaMap[seatNo] = { isAisle: true, price: aislePrice };
+              const sInfo = seatsState[seatNo] || { status: 'available' };
+              rowDiv.appendChild(createSeatButton(seatNo, sInfo, true));
+              aisleCounter++;
+            } else {
+              const aisle = document.createElement('div');
+              aisle.className = 'aisle-space';
+              aisle.textContent = rowLetter;
+              rowDiv.appendChild(aisle);
+            }
             continue;
           }
 
@@ -944,8 +1016,9 @@
             const seatNo = config.numberingStyle === 'NUMERIC'
               ? String(seatCounter)
               : `${rowLetter}${colSeatIdx}`;
+            seatMetaMap[seatNo] = { isAisle: false, price: stdPrice };
             const sInfo = seatsState[seatNo] || { status: 'available' };
-            rowDiv.appendChild(createSeatButton(seatNo, sInfo));
+            rowDiv.appendChild(createSeatButton(seatNo, sInfo, false));
             seatCounter++;
             colSeatIdx++;
           } else {
@@ -956,7 +1029,7 @@
         rowIndex++;
       }
 
-      if (config.doorSystem === 'FRONT_REAR') {
+      if (hasRearDoor) {
         const rearDiv = document.createElement('div');
         rearDiv.className = 'd-flex justify-content-between align-items-center mt-2 pt-2 border-top';
         const doorHtml = `<div class="door-box"><i class="fa-solid fa-door-open me-1"></i> အနောက်တံခါးပေါက်</div>`;
@@ -968,12 +1041,13 @@
       }
     }
 
-    function createSeatButton(seatNo, sInfo) {
+    function createSeatButton(seatNo, sInfo, isAisleSeat = false) {
       const btn = document.createElement('div');
       const status = sInfo.status || 'available';
       const isSelected = selectedSeats.includes(seatNo);
 
-      btn.className = `seat-btn ${status} ${isSelected ? 'selected' : ''}`;
+      btn.className = `seat-btn ${isAisleSeat ? 'aisle-seat' : ''} ${status} ${isSelected ? 'selected' : ''}`;
+      if (isAisleSeat) btn.title = 'အလယ်ခုံ (Aisle Seat)';
 
       let genderBadge = '';
       if (status !== 'available' && sInfo.gender) {
@@ -1018,15 +1092,28 @@
       formSec.classList.remove('d-none');
       toggleSlipSection();
 
-      document.getElementById('selectedSeatsLabel').textContent = selectedSeats.join(', ');
-      const totalAmt = selectedSeats.length * Number(activeTripData.price || 0);
+      const stdPrice = Number(activeTripData.price || 0);
+      let totalAmt = 0;
+      const seatLabels = selectedSeats.map(sNo => {
+        const meta = seatMetaMap[sNo] || { isAisle: false, price: stdPrice };
+        totalAmt += Number(meta.price || stdPrice);
+        return meta.isAisle ? `${sNo} (အလယ်ခုံ)` : sNo;
+      });
+
+      document.getElementById('selectedSeatsLabel').textContent = seatLabels.join(', ');
       document.getElementById('selectedTotalAmount').textContent = formatMMK(totalAmt);
 
       const perSeatContainer = document.getElementById('perSeatInputContainer');
-      perSeatContainer.innerHTML = selectedSeats.map(sNo => `
+      perSeatContainer.innerHTML = selectedSeats.map(sNo => {
+        const meta = seatMetaMap[sNo] || { isAisle: false, price: stdPrice };
+        const seatPriceTag = meta.isAisle
+          ? `<div class="text-danger fw-bold mt-1" style="font-size:0.65rem;">အလယ်ခုံ (${Number(meta.price).toLocaleString()})</div>`
+          : '';
+        return `
         <div class="row g-2 align-items-center bg-light p-2 rounded border">
-          <div class="col-3 col-md-2">
-            <span class="badge bg-dark fs-6 w-100 py-2">ခုံ ${sNo}</span>
+          <div class="col-3 col-md-2 text-center">
+            <span class="badge bg-dark fs-6 w-100 py-1">ခုံ ${sNo}</span>
+            ${seatPriceTag}
           </div>
           <div class="col-9 col-md-4">
             <select class="form-select form-select-sm seat-gender-select" data-seat="${sNo}" required>
@@ -1042,7 +1129,7 @@
             <input type="text" class="form-control form-control-sm seat-pass-nrc" data-seat="${sNo}" placeholder="မှတ်ပုံတင် (Optional)">
           </div>
         </div>
-      `).join('');
+      `}).join('');
     }
 
     // =========================================================================
@@ -1170,7 +1257,7 @@
     }
 
     // =========================================================================
-    // 5. ATOMIC BOOKING SUBMISSION
+    // 5. ATOMIC BOOKING SUBMISSION (SUPPORTS AISLE SEAT PRICING)
     // =========================================================================
     async function submitCustomerBooking(e) {
       e.preventDefault();
@@ -1188,14 +1275,22 @@
 
       const bookingCode = generateAlphanumericCode('UB', 5);
       const shortBatch = bookingCode.slice(2, 6);
+      const stdPrice = Number(activeTripData.price || 0);
+      let computedTotalAmount = 0;
 
       const passengers = selectedSeats.map(sNo => {
         const gEl = document.querySelector(`.seat-gender-select[data-seat="${sNo}"]`);
         const nEl = document.querySelector(`.seat-pass-name[data-seat="${sNo}"]`);
         const nrcEl = document.querySelector(`.seat-pass-nrc[data-seat="${sNo}"]`);
         const cleanSeat = String(sNo).replace(/[^A-Za-z0-9]/g, '');
+        const meta = seatMetaMap[sNo] || { isAisle: false, price: stdPrice };
+        const seatFare = Number(meta.price || stdPrice);
+        computedTotalAmount += seatFare;
+
         return {
           seatNo: sNo,
+          isAisle: Boolean(meta.isAisle),
+          seatPrice: seatFare,
           gender: gEl ? gEl.value : 'M',
           name: (nEl && nEl.value.trim()) ? nEl.value.trim() : contactName,
           nrc: (nrcEl && nrcEl.value.trim()) ? nrcEl.value.trim() : contactNrc,
@@ -1244,7 +1339,7 @@
             contactPhone,
             contactNrc,
             paymentStatus: 'pending',
-            totalAmount: selectedSeats.length * Number(activeTripData.price || 0),
+            totalAmount: computedTotalAmount,
             createdAt: new Date().toISOString(),
             isNotified: false,
             passengers
@@ -1271,7 +1366,6 @@
     function switchMainView(view) {
       document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
       document.getElementById('viewCheckTicket').classList.toggle('d-none', view !== 'check');
-      // Detach live seat listener when switching away from booking view to save reads
       if (view !== 'booking' && activeTripUnsubscribe) {
         activeTripUnsubscribe();
         activeTripUnsubscribe = null;
@@ -1378,6 +1472,7 @@
             <div class="text-end">
               <div class="text-uppercase fw-bold text-secondary" style="font-size:0.7rem;">SEAT NO. (ခုံနံပါတ်)</div>
               <div class="fs-2 fw-bold text-dark lh-1">${passenger.seatNo}</div>
+              ${passenger.isAisle ? '<span class="badge bg-warning text-dark mt-1" style="font-size:0.65rem;">အလယ်ခုံ</span>' : ''}
             </div>
           </div>
 
@@ -1503,10 +1598,10 @@
 
           ctx.fillStyle = '#64748b';
           ctx.font = 'bold 16px "Noto Sans Myanmar", sans-serif';
-          ctx.fillText('SEAT NO.', W - 190, 206);
+          ctx.fillText(passenger.isAisle ? 'SEAT (အလယ်ခုံ)' : 'SEAT NO.', W - 210, 206);
           ctx.fillStyle = '#0f172a';
           ctx.font = 'bold 54px sans-serif';
-          ctx.fillText(String(passenger.seatNo), W - 180, 272);
+          ctx.fillText(String(passenger.seatNo), W - 190, 272);
 
           ctx.fillStyle = '#64748b';
           ctx.font = '18px "Noto Sans Myanmar", sans-serif';
