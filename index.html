@@ -553,8 +553,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
   <script>
+    <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION + SAFE LONG POLLING
+    // 1. FIREBASE CONFIGURATION + LOW-READ CACHE OPTIMIZATION
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
@@ -569,12 +570,9 @@
     const db = firebase.firestore();
 
     try {
-      db.settings({
-        experimentalForceLongPolling: true
-      });
-    } catch (e) {
-      console.warn("Firestore settings warning:", e);
-    }
+      db.settings({ experimentalForceLongPolling: true });
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    } catch (e) {}
 
     function normalizeDigits(str) {
       const mmDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
@@ -618,7 +616,7 @@
     }
 
     // =========================================================================
-    // 2. STATE & INITIALIZATION
+    // 2. STATE & LOW-READ ONE-TIME FETCHERS (WITH LOCAL CACHE)
     // =========================================================================
     let busTypesMap = {};
     let allTrips = [];
@@ -644,6 +642,7 @@
       paymentNote: "ငွေလွှဲရာတွင် Note နေရာ၌ မိမိဖုန်းနံပါတ် ထည့်ရေးပေးပါ။"
     };
 
+    const CACHE_TTL_MS = 15 * 60 * 1000; // 15 Minutes Cache for static settings
     const formatMMK = (num) => Number(num || 0).toLocaleString('en-US') + ' MMK';
 
     function generateAlphanumericCode(prefix, length = 5) {
@@ -655,43 +654,84 @@
       return res;
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       if (window.location.protocol === 'file:') {
         setDbConnectionStatus('error', 'ဖိုင်ကို ဖုန်းထဲမှ တိုက်ရိုက် (file://) ဖွင့်ထားပါသည်။ GitHub Pages HTTPS Link မှတစ်ဆင့် ဖွင့်ပေးပါ။');
+        return;
       }
 
       toggleSlipSection();
+      await Promise.all([
+        loadPaymentAccountsOnce(),
+        loadBusTypesOnce(),
+        loadActiveTripsOnce()
+      ]);
+    });
 
-      db.collection('app_settings').doc('payment_accounts').onSnapshot(doc => {
+    // 1. Fetch Payment Accounts with 15-min Local Cache (Saves continuous reads)
+    async function loadPaymentAccountsOnce() {
+      try {
+        const cachedRaw = localStorage.getItem('utt_cache_pay_acc');
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Date.now() - parsed.ts < CACHE_TTL_MS) {
+            paymentAccountsData = { ...paymentAccountsData, ...parsed.data };
+            toggleSlipSection();
+            return;
+          }
+        }
+        const doc = await db.collection('app_settings').doc('payment_accounts').get();
         setDbConnectionStatus('connected');
         if (doc.exists) {
           paymentAccountsData = { ...paymentAccountsData, ...doc.data() };
+          localStorage.setItem('utt_cache_pay_acc', JSON.stringify({ ts: Date.now(), data: doc.data() }));
         }
         toggleSlipSection();
-      }, err => setDbConnectionStatus('error', err.message));
+      } catch (err) {
+        setDbConnectionStatus('error', err.message);
+      }
+    }
 
-      db.collection('bus_types').onSnapshot(snap => {
+    // 2. Fetch Bus Types with 15-min Local Cache
+    async function loadBusTypesOnce() {
+      try {
+        const cachedRaw = localStorage.getItem('utt_cache_bus_types');
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Date.now() - parsed.ts < CACHE_TTL_MS) {
+            busTypesMap = parsed.data;
+            return;
+          }
+        }
+        const snap = await db.collection('bus_types').get();
         setDbConnectionStatus('connected');
         busTypesMap = {};
         snap.forEach(doc => { busTypesMap[doc.id] = { id: doc.id, ...doc.data() }; });
-        if (activeTripData) renderSeatMap(activeTripData);
-      }, err => setDbConnectionStatus('error', err.message));
+        localStorage.setItem('utt_cache_bus_types', JSON.stringify({ ts: Date.now(), data: busTypesMap }));
+      } catch (err) {
+        setDbConnectionStatus('error', err.message);
+      }
+    }
 
-      db.collection('trips').orderBy('travelDate', 'asc').onSnapshot(snap => {
+    // 3. Fetch ONLY Active Trips via .get() instead of reading all historical trips continuously
+    async function loadActiveTripsOnce() {
+      try {
+        const snap = await db.collection('trips').where('status', '==', 'active').get();
         setDbConnectionStatus('connected');
         allTrips = [];
         const routesSet = new Set();
         snap.forEach(doc => {
           const data = { id: doc.id, ...doc.data() };
-          if ((data.status || 'active') === 'active') {
-            allTrips.push(data);
-            routesSet.add(`${data.origin} - ${data.destination}`);
-          }
+          allTrips.push(data);
+          routesSet.add(`${data.origin} - ${data.destination}`);
         });
+        allTrips.sort((a, b) => (a.travelDate || '').localeCompare(b.travelDate || ''));
         populateRouteDropdown(Array.from(routesSet));
         filterTrips();
-      }, err => setDbConnectionStatus('error', err.message));
-    });
+      } catch (err) {
+        setDbConnectionStatus('error', err.message);
+      }
+    }
 
     function populateRouteDropdown(routes) {
       const sel = document.getElementById('filterRoute');
@@ -720,7 +760,7 @@
     function resetFilters() {
       document.getElementById('filterRoute').value = 'ALL';
       document.getElementById('filterDate').value = '';
-      filterTrips();
+      loadActiveTripsOnce();
     }
 
     function renderTripList() {
@@ -767,10 +807,13 @@
     }
 
     // =========================================================================
-    // 3. CUSTOMIZABLE SEATING PLAN & BOARDING POINTS
+    // 3. SINGLE-TRIP LIVE SEATING LISTENER (MINIMAL READS)
     // =========================================================================
     function selectTrip(tripId) {
-      if (activeTripUnsubscribe) activeTripUnsubscribe();
+      if (activeTripUnsubscribe) {
+        activeTripUnsubscribe();
+        activeTripUnsubscribe = null;
+      }
       activeTripId = tripId;
       selectedSeats = [];
       renderTripList();
@@ -782,9 +825,14 @@
         document.getElementById('seatPlanColumn').scrollIntoView({ behavior: 'smooth' });
       }
 
+      // Listen ONLY to this 1 selected trip document for live seat updates
       activeTripUnsubscribe = db.collection('trips').doc(tripId).onSnapshot(doc => {
         if (!doc.exists) return;
         activeTripData = { id: doc.id, ...doc.data() };
+
+        // Sync seats back to allTrips array locally without extra query
+        const idx = allTrips.findIndex(x => x.id === doc.id);
+        if (idx > -1) allTrips[idx].seats = activeTripData.seats;
 
         const seatsMap = activeTripData.seats || {};
         selectedSeats = selectedSeats.filter(sNo => !seatsMap[sNo] || seatsMap[sNo].status === 'available');
@@ -999,7 +1047,7 @@
     }
 
     // =========================================================================
-    // 4. KPAY / WAVEPAY DISPLAY, QR CODE, SAVE QR, COPY BUTTON & SLIP UPLOAD
+    // 4. PAYMENT QR, COPY & SLIP UPLOAD
     // =========================================================================
     function toggleSlipSection() {
       const methodEl = document.getElementById('custPaymentMethod');
@@ -1208,6 +1256,7 @@
         clearPaymentSlip();
         document.getElementById('customerBookingForm').reset();
         updateBookingFormUI();
+        renderTripList();
         alert(`ဘိုကင်တင်ခြင်း အောင်မြင်ပါသည်!\nသင်၏ Booking No. မှာ: ${bookingCode} ဖြစ်ပါသည်။\nမကြာမီ Universal Travels & Tours မှ ဖုန်းဆက်သွယ်၍ အတည်ပြုပေးပါမည်။`);
       } catch (err) {
         alert(err.message || "ဘိုကင်တင်ရာတွင် အမှားအယွင်းရှိနေပါသည်။");
@@ -1218,11 +1267,16 @@
     }
 
     // =========================================================================
-    // 6. CHECK MY TICKET & NATIVE CANVAS JPG GENERATOR
+    // 6. CHECK MY TICKET & NATIVE CANVAS JPG GENERATOR (WITH ASPECT-RATIO LOGO)
     // =========================================================================
     function switchMainView(view) {
       document.getElementById('viewBooking').classList.toggle('d-none', view !== 'booking');
       document.getElementById('viewCheckTicket').classList.toggle('d-none', view !== 'check');
+      // Detach live seat listener when switching away from booking view to save reads
+      if (view !== 'booking' && activeTripUnsubscribe) {
+        activeTripUnsubscribe();
+        activeTripUnsubscribe = null;
+      }
     }
 
     async function lookupCustomerBookings() {
@@ -1236,8 +1290,8 @@
       try {
         const cleanQuery = q.toUpperCase().replace(/[^A-Z0-9]/g, '');
         const [byPhone, byId] = await Promise.all([
-          db.collection('bookings').where('contactPhone', '==', q).get(),
-          db.collection('bookings').where('bookingId', '==', cleanQuery).get()
+          db.collection('bookings').where('contactPhone', '==', q).limit(15).get(),
+          db.collection('bookings').where('bookingId', '==', cleanQuery).limit(5).get()
         ]);
 
         const map = {};
@@ -1304,7 +1358,7 @@
       container.innerHTML = `
         <div class="ticket-header d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
-            <img src="logo.png" style="height:40px;background:transparent;" onerror="this.style.display='none'">
+            <img src="logo.png" style="height:40px;width:auto;object-fit:contain;background:transparent;" onerror="this.style.display='none'">
             <div>
               <h6 class="mb-0 fw-bold text-warning">Universal Travels & Tours</h6>
               <small class="text-white-50">OFFICIAL BUS E-TICKET</small>
@@ -1398,7 +1452,6 @@
           ctx.fillStyle = '#ea580c';
           ctx.fillRect(8, 134, W - 16, 8);
 
-          // Draw Logo with Aspect Ratio Preserved
           let textStartX = 36;
           if (logoImg) {
             try {
@@ -1527,7 +1580,6 @@
           resolve(canvas.toDataURL('image/jpeg', 0.95));
         };
 
-        // Try loading logo.png
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => drawCanvasContent(img);
