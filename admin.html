@@ -1014,7 +1014,7 @@
 
   <script>
     // =========================================================================
-    // 1. FIREBASE CONFIGURATION + MOBILE NETWORK FIX (SAFE LONG POLLING)
+    // 1. FIREBASE CONFIGURATION + LOW-READ OPTIMIZATION
     // =========================================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnQcsv8TekFkOyOPnb3UWZytPq7zBxLfI",
@@ -1029,12 +1029,9 @@
     const db = firebase.firestore();
 
     try {
-      db.settings({
-        experimentalForceLongPolling: true
-      });
-    } catch (e) {
-      console.warn("Firestore settings warning:", e);
-    }
+      db.settings({ experimentalForceLongPolling: true });
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    } catch (e) {}
 
     function normalizeDigits(str) {
       const mmDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
@@ -1097,13 +1094,18 @@
     }
 
     // =========================================================================
-    // 2. STATE & SECURITY PIN (SUPPORTS MYANMAR & ENGLISH DIGITS)
+    // 2. STATE, PIN SECURITY & DEFERRED DATA LOADING
     // =========================================================================
     let storedAdminPin = "1234";
     let busTypes = [];
     let trips = [];
     let tripsMap = {};
     let bookings = [];
+    let archivedTripsLoaded = false;
+    let unsubActiveTrips = null;
+    let unsubRecentBookings = null;
+    let isAdminBootstrapped = false;
+
     let currentEditingBooking = null;
     let adminJpgFilename = "Ticket.jpg";
     let html5QrScanner = null;
@@ -1131,16 +1133,22 @@
       } catch (e) {}
     }
 
-    function initAdminSecurity() {
-      if (sessionStorage.getItem('utt_admin_unlocked') === 'true') {
-        document.getElementById('pinLockOverlay').style.display = 'none';
-      }
-      db.collection('app_settings').doc('security').onSnapshot(doc => {
+    async function initAdminSecurity() {
+      // One-time .get() for security PIN instead of continuous listener
+      try {
+        const doc = await db.collection('app_settings').doc('security').get();
         setDbConnectionStatus('connected');
         if (doc.exists && doc.data().adminPin) {
           storedAdminPin = normalizeDigits(String(doc.data().adminPin).trim());
         }
-      }, err => setDbConnectionStatus('error', err.message));
+      } catch (err) {
+        setDbConnectionStatus('error', err.message);
+      }
+
+      if (sessionStorage.getItem('utt_admin_unlocked') === 'true') {
+        document.getElementById('pinLockOverlay').style.display = 'none';
+        bootstrapAdminData();
+      }
     }
 
     function verifyAdminPin(e) {
@@ -1154,6 +1162,7 @@
         document.getElementById('pinLockOverlay').style.display = 'none';
         document.getElementById('pinErrorMsg').classList.add('d-none');
         document.getElementById('adminPinInput').value = '';
+        bootstrapAdminData();
       } else {
         document.getElementById('pinErrorMsg').classList.remove('d-none');
       }
@@ -1162,6 +1171,10 @@
     function lockAdminSession() {
       sessionStorage.removeItem('utt_admin_unlocked');
       document.getElementById('pinLockOverlay').style.display = 'flex';
+      // Detach all active listeners when locked to save reads
+      if (unsubActiveTrips) { unsubActiveTrips(); unsubActiveTrips = null; }
+      if (unsubRecentBookings) { unsubRecentBookings(); unsubRecentBookings = null; }
+      isAdminBootstrapped = false;
     }
 
     async function updateAdminPin(e) {
@@ -1181,48 +1194,71 @@
     }
 
     // =========================================================================
-    // 3. REAL-TIME LISTENERS
+    // 3. OPTIMIZED LISTENERS (STARTED ONLY AFTER PIN UNLOCK)
     // =========================================================================
     window.addEventListener('DOMContentLoaded', () => {
       if (window.location.protocol === 'file:') {
         setDbConnectionStatus('error', 'ဖိုင်ကို ဖုန်းထဲမှ တိုက်ရိုက် (file://) ဖွင့်ထားပါသည်။ GitHub Pages HTTPS Link မှတစ်ဆင့် ဖွင့်ပေးပါ။');
+        return;
+      }
+      renderLiveBusPreview();
+      initAdminSecurity();
+
+      // Load completed/archived trips ONLY when user expands the collapsed section
+      const archTripCollapse = document.getElementById('collapseCompletedTripsSetup');
+      if (archTripCollapse) {
+        archTripCollapse.addEventListener('show.bs.collapse', () => {
+          if (!archivedTripsLoaded) loadCompletedTripsOnDemand();
+        });
+      }
+    });
+
+    async function bootstrapAdminData() {
+      if (isAdminBootstrapped) return;
+      isAdminBootstrapped = true;
+
+      // 1. One-time .get() for static Payment Accounts & Bus Types
+      try {
+        const [payDoc, btSnap] = await Promise.all([
+          db.collection('app_settings').doc('payment_accounts').get(),
+          db.collection('bus_types').get()
+        ]);
+
+        if (payDoc.exists) {
+          const d = payDoc.data();
+          document.getElementById('setKpayName').value = d.kpayName || '';
+          document.getElementById('setKpayPhone').value = d.kpayPhone || '';
+          document.getElementById('setWaveName').value = d.waveName || '';
+          document.getElementById('setWavePhone').value = d.wavePhone || '';
+          document.getElementById('setBankName').value = d.bankName || '';
+          document.getElementById('setBankPhone').value = d.bankPhone || '';
+          document.getElementById('setPaymentNote').value = d.paymentNote || '';
+          adminQrImages.kpay = d.kpayQr || "";
+          adminQrImages.wave = d.waveQr || "";
+          adminQrImages.bank = d.bankQr || "";
+          updateAdminQrPreviews();
+        }
+
+        busTypes = [];
+        btSnap.forEach(d => busTypes.push({ id: d.id, ...d.data() }));
+        renderBusTypesUI();
+      } catch (err) {
+        setDbConnectionStatus('error', err.message);
       }
 
-      initAdminSecurity();
-      renderLiveBusPreview();
-
-      db.collection('app_settings').doc('payment_accounts').onSnapshot(doc => {
-        if (!doc.exists) return;
-        const d = doc.data();
-        document.getElementById('setKpayName').value = d.kpayName || '';
-        document.getElementById('setKpayPhone').value = d.kpayPhone || '';
-        document.getElementById('setWaveName').value = d.waveName || '';
-        document.getElementById('setWavePhone').value = d.wavePhone || '';
-        document.getElementById('setBankName').value = d.bankName || '';
-        document.getElementById('setBankPhone').value = d.bankPhone || '';
-        document.getElementById('setPaymentNote').value = d.paymentNote || '';
-        adminQrImages.kpay = d.kpayQr || "";
-        adminQrImages.wave = d.waveQr || "";
-        adminQrImages.bank = d.bankQr || "";
-        updateAdminQrPreviews();
-      });
-
-      db.collection('bus_types').onSnapshot(snap => {
+      // 2. Real-time listener ONLY for ACTIVE trips (excludes old completed trips)
+      unsubActiveTrips = db.collection('trips').where('status', '==', 'active').onSnapshot(snap => {
         setDbConnectionStatus('connected');
-        busTypes = [];
-        snap.forEach(d => busTypes.push({ id: d.id, ...d.data() }));
-        renderBusTypesUI();
-      }, err => setDbConnectionStatus('error', err.message));
+        const activeList = [];
+        snap.forEach(d => activeList.push({ id: d.id, ...d.data() }));
+        activeList.sort((a, b) => (a.travelDate || '').localeCompare(b.travelDate || ''));
 
-      db.collection('trips').orderBy('travelDate', 'asc').onSnapshot(snap => {
-        setDbConnectionStatus('connected');
-        trips = [];
+        // Keep previously loaded completed trips if any, replace active ones
+        const existingCompleted = trips.filter(t => (t.status || 'active') !== 'active');
+        trips = [...activeList, ...existingCompleted];
         tripsMap = {};
-        snap.forEach(d => {
-          const obj = { id: d.id, ...d.data() };
-          trips.push(obj);
-          tripsMap[d.id] = obj;
-        });
+        trips.forEach(t => { tripsMap[t.id] = t; });
+
         renderTripsUI();
         renderAdminBookingsTable();
         populateManifestDropdown();
@@ -1230,7 +1266,8 @@
         updateDashboardKPIs();
       }, err => setDbConnectionStatus('error', err.message));
 
-      db.collection('bookings').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      // 3. Real-time listener capped to latest 100 bookings (prevents reading thousands of old docs)
+      unsubRecentBookings = db.collection('bookings').orderBy('createdAt', 'desc').limit(100).onSnapshot(snap => {
         setDbConnectionStatus('connected');
         bookings = [];
         snap.forEach(doc => {
@@ -1246,7 +1283,24 @@
         populateScannerTicketDropdown();
         updateDashboardKPIs();
       }, err => setDbConnectionStatus('error', err.message));
-    });
+    }
+
+    async function loadCompletedTripsOnDemand() {
+      if (archivedTripsLoaded) return;
+      try {
+        const snap = await db.collection('trips').where('status', 'in', ['completed', 'cancelled']).limit(50).get();
+        archivedTripsLoaded = true;
+        snap.forEach(d => {
+          const obj = { id: d.id, ...d.data() };
+          if (!tripsMap[obj.id]) {
+            trips.push(obj);
+            tripsMap[obj.id] = obj;
+          }
+        });
+        renderTripsUI();
+        populateManifestDropdown();
+      } catch (e) {}
+    }
 
     function triggerNewBookingPopup(b) {
       playAlertBell();
@@ -1565,7 +1619,7 @@
       box.innerHTML = `
         <div class="ticket-header d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
-            <img src="logo.png" style="height:38px;background:transparent;" onerror="this.style.display='none'">
+            <img src="logo.png" style="height:38px;width:auto;object-fit:contain;background:transparent;" onerror="this.style.display='none'">
             <div>
               <h6 class="mb-0 fw-bold text-warning">Universal Travels & Tours</h6>
               <small class="text-white-50">OFFICIAL BUS E-TICKET</small>
@@ -1661,7 +1715,6 @@
           ctx.fillStyle = '#ea580c';
           ctx.fillRect(8, 134, W - 16, 8);
 
-          // Draw Logo with Aspect Ratio Preserved
           let textStartX = 36;
           if (logoImg) {
             try {
@@ -1688,11 +1741,12 @@
           ctx.font = '16px sans-serif';
           ctx.fillText('OFFICIAL BUS E-TICKET', textStartX, 98);
 
-          ctx.fillStyle = '#22c55e';
+          const isPaid = booking.paymentStatus === 'paid';
+          ctx.fillStyle = isPaid ? '#22c55e' : '#f59e0b';
           ctx.fillRect(W - 210, 32, 174, 38);
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 18px sans-serif';
-          ctx.fillText('CONFIRMED', W - 178, 57);
+          ctx.fillText(booking.paymentStatus.toUpperCase(), W - 170, 57);
           ctx.fillStyle = '#e2e8f0';
           ctx.font = 'bold 18px monospace';
           ctx.fillText(`Booking: ${booking.bookingId}`, W - 210, 102);
@@ -1790,7 +1844,6 @@
           resolve(canvas.toDataURL('image/jpeg', 0.95));
         };
 
-        // Try loading logo.png
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => drawCanvasContent(img);
@@ -1911,7 +1964,7 @@
     }
 
     // =========================================================================
-    // 7. BUS TYPE & TRIP SETUP
+    // 7. BUS TYPE & TRIP SETUP (LOCAL STATE UPDATES TO AVOID EXTRA READS)
     // =========================================================================
     function renderLiveBusPreview() {
       const steering = document.getElementById('btSteering').value;
@@ -2003,7 +2056,7 @@
 
     async function saveBusType(e) {
       e.preventDefault();
-      await db.collection('bus_types').add({
+      const newBt = {
         typeName: document.getElementById('btName').value.trim(),
         steering: document.getElementById('btSteering').value,
         layoutPattern: document.getElementById('btLayout').value,
@@ -2013,9 +2066,18 @@
         midDoorRow: Number(document.getElementById('btMidDoorRow').value || 5),
         hasToilet: document.getElementById('btHasToilet').checked,
         backRowFull: document.getElementById('btBackRowFull').checked
-      });
+      };
+      const docRef = await db.collection('bus_types').add(newBt);
+      busTypes.push({ id: docRef.id, ...newBt });
+      renderBusTypesUI();
       document.getElementById('busTypeForm').reset();
       renderLiveBusPreview();
+    }
+
+    async function deleteBusTypeItem(btId) {
+      await db.collection('bus_types').doc(btId).delete();
+      busTypes = busTypes.filter(x => x.id !== btId);
+      renderBusTypesUI();
     }
 
     function renderBusTypesUI() {
@@ -2031,7 +2093,7 @@
       listEl.innerHTML = busTypes.map(bt => `
         <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border small">
           <div><strong>${bt.typeName}</strong> (${bt.steering} • ${bt.totalSeats} ခုံ)</div>
-          <button class="btn btn-sm text-danger p-0" onclick="db.collection('bus_types').doc('${bt.id}').delete()">
+          <button class="btn btn-sm text-danger p-0" onclick="deleteBusTypeItem('${bt.id}')">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
@@ -2084,7 +2146,7 @@
       const activeList = trips.filter(t => (t.status || 'active') === 'active');
       const compList = trips.filter(t => (t.status || 'active') !== 'active');
 
-      document.getElementById('completedTripsCountLabel').textContent = compList.length;
+      document.getElementById('completedTripsCountLabel').textContent = archivedTripsLoaded ? compList.length : 'နှိပ်၍ကြည့်ရန်';
 
       activeTbody.innerHTML = activeList.length === 0
         ? `<tr><td colspan="6" class="text-center text-muted py-2">ပြေးဆွဲဆဲ ခရီးစဉ်မရှိပါ။</td></tr>`
@@ -2138,10 +2200,11 @@
     async function saveEditedTrip() {
       const id = document.getElementById('editTrId').value;
       if (!id) return;
+      const newStatus = document.getElementById('editTrStatus').value;
       const rawPoints = document.getElementById('editTrBoardingPoints').value.split(',').map(s => s.trim()).filter(Boolean);
-      await db.collection('trips').doc(id).update({
+      const updatedFields = {
         tripCode: document.getElementById('editTrCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''),
-        status: document.getElementById('editTrStatus').value,
+        status: newStatus,
         origin: document.getElementById('editTrOrigin').value.trim(),
         destination: document.getElementById('editTrDest').value.trim(),
         travelDate: document.getElementById('editTrDate').value,
@@ -2149,7 +2212,13 @@
         arrivalTime: document.getElementById('editTrArr').value.trim(),
         price: Number(document.getElementById('editTrPrice').value),
         boardingPoints: rawPoints
-      });
+      };
+      await db.collection('trips').doc(id).update(updatedFields);
+      if (tripsMap[id]) {
+        Object.assign(tripsMap[id], updatedFields);
+        renderTripsUI();
+        renderAdminBookingsTable();
+      }
       bootstrap.Modal.getInstance(document.getElementById('editTripModal')).hide();
     }
 
@@ -2157,6 +2226,9 @@
       const id = document.getElementById('editTrId').value;
       if (!id || !confirm('ဤခရီးစဉ်ကို ဖျက်ပစ်ရန် သေချာပါသလား?')) return;
       await db.collection('trips').doc(id).delete();
+      trips = trips.filter(t => t.id !== id);
+      delete tripsMap[id];
+      renderTripsUI();
       bootstrap.Modal.getInstance(document.getElementById('editTripModal')).hide();
     }
 
